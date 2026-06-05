@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📗 会考刷题系统 · 显示正确答案</title>
+    <style>
+        :root {
+            --primary: #2ecc71; --danger: #e74c3c; --bg: #f4f6ff;
+            --card: #ffffff; --text: #2c3e50; --shadow: 0 8px 24px rgba(0,0,0,0.06);
+            --radius: 20px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 1.5rem 1rem; }
+        .app { width: 100%; max-width: 850px; display: flex; flex-direction: column; gap: 1.5rem; }
+        .header h1 { font-size: 2.4rem; font-weight: 700; text-align: center; background: linear-gradient(135deg, #2ecc71, #3498db); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .countdown { text-align: center; font-size: 1.2rem; font-weight: 600; color: #e67e22; margin-top: -1rem; }
+        .nav { display: flex; gap: 0.5rem; background: var(--card); border-radius: var(--radius); padding: 0.4rem; box-shadow: var(--shadow); flex-wrap: wrap; }
+        .nav button { flex: 1; min-width: 60px; padding: 0.7rem 0.2rem; border: none; background: transparent; font-weight: 600; border-radius: 12px; cursor: pointer; color: #7f8c8d; transition: 0.2s; font-size: 0.85rem; }
+        .nav button.active { background: var(--primary); color: white; }
+        .card { background: var(--card); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); }
+        .btn { padding: 0.6rem 1.4rem; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; font-size: 0.95rem; transition: 0.2s; display: inline-flex; align-items: center; gap: 0.3rem; }
+        .btn-primary { background: var(--primary); color: white; } .btn-primary:hover { opacity: 0.9; }
+        .btn-outline { background: white; border: 2px solid var(--primary); color: var(--primary); }
+        .btn-danger { background: #fce4e4; color: var(--danger); }
+        .btn-success { background: #2ecc71; color: white; }
+        .btn-sm { padding: 0.4rem 1rem; font-size: 0.8rem; }
+        .subject-circle {
+            width: 140px; height: 140px; border-radius: 50%; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.3s; margin: 0 auto; border: 3px solid #eee;
+            position: relative; user-select: none;
+        }
+        .subject-circle:hover { transform: scale(1.05); box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+        .subject-circle.bio { border-color: #2ecc71; background: #f0fff4; }
+        .subject-circle.geo { border-color: #3498db; background: #f0f8ff; }
+        .subject-icon { font-size: 2.2rem; }
+        .subject-count { font-size: 1.6rem; font-weight: 700; }
+        .subject-label { font-size: 0.9rem; font-weight: 600; }
+        .question-card { background: #f9fafc; border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; border: 1px solid #eee; }
+        .blank-mask { display: inline-block; background: #eee; border-radius: 8px; padding: 0.2rem 0.5rem; cursor: pointer; font-weight: 600; color: #666; user-select: none; }
+        .blank-reveal { color: var(--primary); font-weight: 700; }
+        .img-mask-container { position: relative; display: inline-block; max-width: 100%; margin-top: 0.5rem; }
+        .img-mask-container img { width: 100%; height: auto; border-radius: 8px; display: block; }
+        .img-mask-overlay {
+            position: absolute; background: #000000; color: white;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem;
+            text-shadow: 0 0 4px rgba(0,0,0,0.8);
+        }
+        .hidden { display: none !important; }
+        .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; margin: 0 0.2rem; }
+        .badge-bio { background: #d4edda; color: #155724; }
+        .badge-geo { background: #d1ecf1; color: #0c5460; }
+        .ai-box { background: #f0f4ff; border-left: 4px solid var(--primary); padding: 0.8rem; border-radius: 8px; margin-top: 0.5rem; }
+        .mask-drawing-area { position: relative; display: inline-block; cursor: crosshair; max-width: 100%; }
+        .mask-drawing-area img { display: block; max-width: 100%; height: auto; }
+        .drawing-rect { position: absolute; border: 2px dashed #3498db; background: rgba(52,152,219,0.2); }
+        .mask-item { position: absolute; border: 2px solid #e74c3c; background: rgba(231,76,60,0.1); }
+        .mask-item .delete-mask { position: absolute; top: -10px; right: -10px; background: white; border-radius: 50%; width: 20px; height: 20px; text-align: center; line-height: 18px; cursor: pointer; font-weight: bold; color: #e74c3c; border: 1px solid #e74c3c; font-size: 0.8rem; }
+        .practice-columns { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; }
+        .practice-column { flex: 1; min-width: 250px; background: #fafbfc; border-radius: 16px; padding: 1.2rem; }
+        .practice-column h4 { text-align: center; margin-bottom: 1rem; font-size: 1.2rem; }
+        .practice-column.bio-col { border: 2px solid #d4edda; }
+        .practice-column.geo-col { border: 2px solid #d1ecf1; }
+        .type-row { display: flex; gap: 1.5rem; justify-content: center; align-items: center; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="header"><h1>📗 会考刷题系统</h1></div>
+    <div class="countdown" id="countdown">⏳ 距离会考还有 ...</div>
+
+    <div class="nav">
+        <button id="nav-home" class="active">🏠 首页</button>
+        <button id="nav-practice-btn">📝 刷题</button>
+        <button id="nav-wrong">❌ 错题集</button>
+        <button id="nav-knowledge">🧠 背诵</button>
+        <button id="nav-stats">📊 统计</button>
+        <button id="nav-settings">⚙️ 设置</button>
+    </div>
+
+    <!-- 首页 -->
+    <div id="panel-home" class="card">
+        <div style="display:flex; gap:2rem; justify-content:center; flex-wrap:wrap; margin-bottom:1rem;">
+            <div class="subject-circle bio" id="subject-bio">
+                <div class="subject-icon">🧬</div>
+                <div class="subject-count" id="count-bio">0</div>
+                <div class="subject-label">生物</div>
+            </div>
+            <div class="subject-circle geo" id="subject-geo">
+                <div class="subject-icon">🌍</div>
+                <div class="subject-count" id="count-geo">0</div>
+                <div class="subject-label">地理</div>
+            </div>
+        </div>
+        <div style="text-align:center;">
+            <button id="add-question-btn" class="btn btn-primary">＋ 添加题目</button>
+            <button id="reset-all-progress-btn" class="btn btn-danger btn-sm" style="margin-left:1rem;">🔄 重置所有进度</button>
+        </div>
+    </div>
+
+    <!-- 刷题选择页 -->
+    <div id="panel-practice-select" class="card hidden">
+        <h3 style="text-align:center; margin-bottom:1.5rem;">选择刷题类型</h3>
+        <div class="practice-columns">
+            <div class="practice-column bio-col">
+                <h4 style="color:#2ecc71;">🧬 生物</h4>
+                <div class="type-row">
+                    <div class="subject-circle bio" id="practice-bio-choice">
+                        <div class="subject-icon">📋</div>
+                        <div class="subject-count" id="bio-choice-count">0/0</div>
+                        <div class="subject-label">选择题</div>
+                    </div>
+                    <div class="subject-circle bio" id="practice-bio-fill">
+                        <div class="subject-icon">✍️</div>
+                        <div class="subject-count" id="bio-fill-count">0/0</div>
+                        <div class="subject-label">填空题</div>
+                    </div>
+                </div>
+            </div>
+            <div class="practice-column geo-col">
+                <h4 style="color:#3498db;">🌍 地理</h4>
+                <div class="type-row">
+                    <div class="subject-circle geo" id="practice-geo-choice">
+                        <div class="subject-icon">📋</div>
+                        <div class="subject-count" id="geo-choice-count">0/0</div>
+                        <div class="subject-label">选择题</div>
+                    </div>
+                    <div class="subject-circle geo" id="practice-geo-fill">
+                        <div class="subject-icon">✍️</div>
+                        <div class="subject-count" id="geo-fill-count">0/0</div>
+                        <div class="subject-label">填空题</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 刷题进行中 -->
+    <div id="panel-practice" class="card hidden">
+        <div id="practice-header"></div>
+        <div id="practice-area"></div>
+    </div>
+
+    <!-- 错题集 -->
+    <div id="panel-wrong" class="card hidden">
+        <div style="display:flex; gap:2rem; justify-content:center; flex-wrap:wrap; margin-bottom:1rem;">
+            <div class="subject-circle bio" id="wrong-circle-bio">
+                <div class="subject-icon">🧬</div>
+                <div class="subject-count" id="wrong-count-bio">0</div>
+                <div class="subject-label">生物错题</div>
+            </div>
+            <div class="subject-circle geo" id="wrong-circle-geo">
+                <div class="subject-icon">🌍</div>
+                <div class="subject-count" id="wrong-count-geo">0</div>
+                <div class="subject-label">地理错题</div>
+            </div>
+        </div>
+        <div style="text-align:center;">
+            <button id="reset-wrong-progress-btn" class="btn btn-danger btn-sm">🔄 重置所有刷题进度</button>
+        </div>
+    </div>
+
+    <!-- 背诵 -->
+    <div id="panel-knowledge" class="card hidden">
+        <div id="knowledge-circles">
+            <div style="display:flex; gap:2rem; justify-content:center; flex-wrap:wrap; margin-bottom:1rem;">
+                <div class="subject-circle bio" id="know-circle-bio">
+                    <div class="subject-icon">🧬</div>
+                    <div class="subject-count" id="know-count-bio">0</div>
+                    <div class="subject-label">生物知识点</div>
+                </div>
+                <div class="subject-circle geo" id="know-circle-geo">
+                    <div class="subject-icon">🌍</div>
+                    <div class="subject-count" id="know-count-geo">0</div>
+                    <div class="subject-label">地理知识点</div>
+                </div>
+            </div>
+            <div style="text-align:center;">
+                <button id="add-knowledge-btn" class="btn btn-primary">＋ 添加知识点</button>
+            </div>
+        </div>
+        <div id="knowledge-memorize-area" class="hidden"></div>
+    </div>
+
+    <!-- 统计 -->
+    <div id="panel-stats" class="card hidden">
+        <h3>📊 每日错题趋势（近7天）</h3>
+        <div class="chart-container"><canvas id="errorChart" width="400" height="200"></canvas></div>
+        <div style="margin-top:1rem; text-align:center;">
+            <button id="ai-stats-analysis-btn" class="btn btn-outline">🤖 生成薄弱点分析</button>
+            <div id="ai-stats-result"></div>
+        </div>
+    </div>
+
+    <!-- 设置 -->
+    <div id="panel-settings" class="card hidden">
+        <h3>⚙️ 设置</h3>
+        <div class="form-group"><label>DeepSeek API Key</label><input type="password" id="api-key-input" placeholder="sk-..."></div>
+        <button id="save-api-key" class="btn btn-primary">💾 保存</button>
+        <hr style="margin:1rem 0;">
+        <div class="form-group"><label>导入题目（JSON）</label><textarea id="import-json" rows="5" placeholder='[{"subject":"生物","type":"choice","text":"...","options":["A","B","C","D"],"correctIndex":0}]'></textarea>
+            <button id="import-btn" class="btn btn-outline btn-sm">📥 导入</button>
+            <button id="export-btn" class="btn btn-outline btn-sm">📤 导出</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const STORAGE_QUESTIONS = 'exam_questions_v17';
+    const STORAGE_PROGRESS = 'exam_progress_v17';
+    const STORAGE_DAILY_ERRORS = 'exam_daily_errors_v17';
+    const STORAGE_KNOWLEDGE = 'exam_knowledge_v17';
+    const API_KEY_STORE = 'deepseek_key_v17';
+
+    let questions = [];
+    let progress = {};
+    let dailyErrors = [];
+    let knowledgeItems = [];
+    let apiKey = localStorage.getItem(API_KEY_STORE) || '';
+
+    function loadAll() {
+        try { questions = JSON.parse(localStorage.getItem(STORAGE_QUESTIONS)) || []; } catch(e){}
+        try { progress = JSON.parse(localStorage.getItem(STORAGE_PROGRESS)) || {}; } catch(e){}
+        try { dailyErrors = JSON.parse(localStorage.getItem(STORAGE_DAILY_ERRORS)) || []; } catch(e){}
+        try { knowledgeItems = JSON.parse(localStorage.getItem(STORAGE_KNOWLEDGE)) || []; } catch(e){}
+        document.getElementById('api-key-input').value = apiKey;
+    }
+    function saveQuestions() { localStorage.setItem(STORAGE_QUESTIONS, JSON.stringify(questions)); }
+    function saveProgress() { localStorage.setItem(STORAGE_PROGRESS, JSON.stringify(progress)); }
+    function saveDailyErrors() { localStorage.setItem(STORAGE_DAILY_ERRORS, JSON.stringify(dailyErrors)); }
+    function saveKnowledge() { localStorage.setItem(STORAGE_KNOWLEDGE, JSON.stringify(knowledgeItems)); }
+
+    function updateCountdown() {
+        const target = new Date('2026-06-22T23:59:00').getTime();
+        const diff = target - Date.now();
+        if (diff <= 0) { document.getElementById('countdown').textContent = '🎉 会考已到！'; return; }
+        const d = Math.floor(diff / 86400000);
+        const h = Math.floor((diff % 86400000) / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        document.getElementById('countdown').textContent = `⏳ 距离会考还有 ${d} 天 ${h} 时 ${m} 分 ${s} 秒`;
+    }
+    setInterval(updateCountdown, 1000);
+
+    function getTypeKey(subject, type) { return `${subject}_${type}`; }
+    function getTypeProgress(subject, type) {
+        const key = getTypeKey(subject, type);
+        if (!progress[key]) progress[key] = { completed: [], currentGroup: 0 };
+        return progress[key];
+    }
+    function getTypeStats(subject, type) {
+        const pool = questions.filter(q => q.subject === subject && q.type === type);
+        const tp = getTypeProgress(subject, type);
+        return { total: pool.length, completed: tp.completed.length };
+    }
+
+    const panels = {
+        home: document.getElementById('panel-home'),
+        practiceSelect: document.getElementById('panel-practice-select'),
+        practice: document.getElementById('panel-practice'),
+        wrong: document.getElementById('panel-wrong'),
+        knowledge: document.getElementById('panel-knowledge'),
+        stats: document.getElementById('panel-stats'),
+        settings: document.getElementById('panel-settings'),
+    };
+
+    function switchPanel(name) {
+        Object.values(panels).forEach(p => p.classList.add('hidden'));
+        document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+        panels[name].classList.remove('hidden');
+        let navBtnId = `nav-${name}`;
+        if (name === 'practiceSelect' || name === 'practice') {
+            navBtnId = 'nav-practice-btn';
+        }
+        document.getElementById(navBtnId).classList.add('active');
+        if (name === 'home') renderHome();
+        if (name === 'practiceSelect') renderPracticeSelect();
+        if (name === 'wrong') renderWrongCircles();
+        if (name === 'knowledge') renderKnowledgeCircles();
+        if (name === 'stats') renderStatsChart();
+    }
+
+    document.getElementById('nav-home').addEventListener('click', () => switchPanel('home'));
+    document.getElementById('nav-practice-btn').addEventListener('click', () => switchPanel('practiceSelect'));
+    document.getElementById('nav-wrong').addEventListener('click', () => switchPanel('wrong'));
+    document.getElementById('nav-knowledge').addEventListener('click', () => switchPanel('knowledge'));
+    document.getElementById('nav-stats').addEventListener('click', () => switchPanel('stats'));
+    document.getElementById('nav-settings').addEventListener('click', () => switchPanel('settings'));
+
+    function renderHome() {
+        document.getElementById('count-bio').textContent = questions.filter(q => q.subject === '生物').length;
+        document.getElementById('count-geo').textContent = questions.filter(q => q.subject === '地理').length;
+    }
+    document.getElementById('subject-bio').addEventListener('click', () => switchPanel('practiceSelect'));
+    document.getElementById('subject-geo').addEventListener('click', () => switchPanel('practiceSelect'));
+
+    function renderPracticeSelect() {
+        const categories = [
+            { id: 'bio-choice-count', sub: '生物', type: 'choice' },
+            { id: 'bio-fill-count', sub: '生物', type: 'fill' },
+            { id: 'geo-choice-count', sub: '地理', type: 'choice' },
+            { id: 'geo-fill-count', sub: '地理', type: 'fill' },
+        ];
+        categories.forEach(c => {
+            const { total, completed } = getTypeStats(c.sub, c.type);
+            document.getElementById(c.id).textContent = `${completed}/${total}`;
+        });
+    }
+
+    document.getElementById('practice-bio-choice').addEventListener('click', () => startTypePractice('生物', 'choice'));
+    document.getElementById('practice-bio-fill').addEventListener('click', () => startTypePractice('生物', 'fill'));
+    document.getElementById('practice-geo-choice').addEventListener('click', () => startTypePractice('地理', 'choice'));
+    document.getElementById('practice-geo-fill').addEventListener('click', () => startTypePractice('地理', 'fill'));
+
+    let groupQuestions = [], currentIndex = 0, currentSubject = '', currentType = '', groupErrorIds = new Set();
+    let currentSource = 'practice'; // 'practice' 或 'wrong'
+
+    function startTypePractice(subject, type) {
+        const stats = getTypeStats(subject, type);
+        if (stats.total === 0) { alert(`还没有${subject}${type === 'choice' ? '选择题' : '填空题'}`); return; }
+        const tp = getTypeProgress(subject, type);
+        const pool = questions.filter(q => q.subject === subject && q.type === type && !tp.completed.includes(q.id));
+        if (pool.length === 0) { alert('所有题目已完成，请重置进度'); return; }
+        groupQuestions = shuffleArray(pool);
+        currentIndex = 0; currentSubject = subject; currentType = type;
+        groupErrorIds = new Set();
+        currentSource = 'practice';
+        switchPanel('practice');
+        renderPracticeHeader();
+    }
+
+    function renderPracticeHeader() {
+        const header = document.getElementById('practice-header');
+        if (currentSource === 'wrong') {
+            header.innerHTML = `
+                <h3>📕 ${currentSubject}错题重刷 (${groupQuestions.length}题)</h3>
+                <button id="back-to-wrong-btn" class="btn btn-outline btn-sm">↩ 返回错题集</button>
+                <div id="group-result" style="margin-top:1rem;"></div>
+            `;
+            document.getElementById('back-to-wrong-btn').addEventListener('click', () => switchPanel('wrong'));
+        } else {
+            header.innerHTML = `
+                <h3>📘 ${currentSubject}${currentType === 'choice' ? '选择题' : '填空题'} (${groupQuestions.length}题)</h3>
+                <button id="reset-subject-progress" class="btn btn-outline btn-sm">🔄 重置此分类进度</button>
+                <div id="group-result" style="margin-top:1rem;"></div>
+            `;
+            document.getElementById('reset-subject-progress').addEventListener('click', () => {
+                if (confirm(`重置${currentSubject}${currentType}的刷题进度？错题次数不变。`)) {
+                    const key = getTypeKey(currentSubject, currentType);
+                    progress[key] = { completed: [], currentGroup: 0 };
+                    saveProgress();
+                    switchPanel('practiceSelect');
+                }
+            });
+        }
+        renderQuestion();
+    }
+
+    function renderQuestion() {
+        if (currentIndex >= groupQuestions.length) { finishGroup(); return; }
+        const q = groupQuestions[currentIndex];
+        let html = `<div class="question-card"><strong>${currentIndex+1}/${groupQuestions.length}. ${escapeHtml(q.text)}</strong>`;
+        if (q.image) html += `<br><img src="${q.image}" style="max-width:100%; height:auto; border-radius:8px;">`;
+        if (q.type === 'choice') {
+            html += '<div style="margin:0.8rem 0;">';
+            q.options.forEach((opt,i) => html += `<label style="display:block;margin:0.3rem;"><input type="radio" name="choice" value="${i}"> ${String.fromCharCode(65+i)}. ${escapeHtml(opt)}</label>`);
+            html += '</div><button class="btn btn-primary submit-btn">提交</button>';
+        } else {
+            // 填空题：遮盖模式，点击显示答案
+            html += '<div style="margin:0.8rem 0;">';
+            const parts = q.text.split(/\{\{.+?\}\}/);
+            q.blanks.forEach((ans, i) => {
+                html += escapeHtml(parts[i]) + `<span class="blank-mask" data-idx="${i}">🔒 点击</span>`;
+            });
+            html += escapeHtml(parts[parts.length-1]) + '</div>';
+            html += '<button class="btn btn-success correct-btn">✅ 我答对了</button> ';
+            html += '<button class="btn btn-danger wrong-btn">❌ 我答错了</button>';
+        }
+        html += '<div id="feedback"></div></div>';
+        document.getElementById('practice-area').innerHTML = html;
+
+        if (q.type === 'choice') {
+            document.querySelector('.submit-btn').addEventListener('click', () => {
+                const sel = document.querySelector('input[name="choice"]:checked');
+                if (!sel) { alert('请选择'); return; }
+                checkAnswer(q, parseInt(sel.value));
+            });
+        } else {
+            // 填空题绑定遮盖点击事件
+            const blanksAnswers = q.blanks;
+            document.querySelectorAll('.blank-mask').forEach(span => {
+                span.addEventListener('click', function() {
+                    const idx = parseInt(this.dataset.idx);
+                    this.outerHTML = `<span class="blank-reveal">${escapeHtml(blanksAnswers[idx])}</span>`;
+                });
+            });
+            // 绑定自评按钮
+            document.querySelector('.correct-btn').addEventListener('click', () => selfEvaluate(q, true));
+            document.querySelector('.wrong-btn').addEventListener('click', () => selfEvaluate(q, false));
+        }
+    }
+
+    function checkAnswer(q, userAns) {
+        let correct = q.type === 'choice' ? (userAns === q.correctIndex) : false;
+        const fb = document.getElementById('feedback');
+        if (correct) {
+            fb.innerHTML = '🎉 正确！';
+            if (currentSource === 'practice') {
+                const tp = getTypeProgress(currentSubject, currentType);
+                if (!tp.completed.includes(q.id)) { tp.completed.push(q.id); saveProgress(); }
+            }
+        } else {
+            let correctAnsText = q.type === 'choice'
+                ? `${String.fromCharCode(65+q.correctIndex)}. ${escapeHtml(q.options[q.correctIndex])}`
+                : q.blanks.map(a => escapeHtml(a)).join('、');
+            fb.innerHTML = `❌ 错误<br><span style="color:var(--danger);">正确答案：${correctAnsText}</span>`;
+            q.errorCount = (q.errorCount || 0) + 1; groupErrorIds.add(q.id);
+            recordDailyError(); saveQuestions();
+            addAIBtn(fb, q, userAns);
+        }
+        disableAndNext(fb);
+    }
+
+    function selfEvaluate(q, isCorrect) {
+        const fb = document.getElementById('feedback');
+        if (isCorrect) {
+            fb.innerHTML = '🎉 正确！';
+            if (currentSource === 'practice') {
+                const tp = getTypeProgress(currentSubject, currentType);
+                if (!tp.completed.includes(q.id)) { tp.completed.push(q.id); saveProgress(); }
+            }
+        } else {
+            let correctAnsText = q.blanks.map(a => escapeHtml(a)).join('、');
+            fb.innerHTML = `❌ 错误<br><span style="color:var(--danger);">正确答案：${correctAnsText}</span>`;
+            q.errorCount = (q.errorCount || 0) + 1; groupErrorIds.add(q.id);
+            recordDailyError(); saveQuestions();
+            addAIBtn(fb, q, null);
+        }
+        disableAndNext(fb);
+    }
+
+    function addAIBtn(fb, q, userAns) {
+        const aiBtn = document.createElement('button');
+        aiBtn.className = 'btn btn-outline btn-sm';
+        aiBtn.style.marginLeft = '0.5rem';
+        aiBtn.textContent = '🤖 深度解析';
+        aiBtn.addEventListener('click', () => requestSingleAIAnalysis(q, userAns));
+        fb.appendChild(aiBtn);
+    }
+
+    function disableAndNext(fb) {
+        document.querySelectorAll('.submit-btn, .correct-btn, .wrong-btn').forEach(b => b.disabled = true);
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'btn btn-primary btn-sm'; nextBtn.style.marginLeft = '1rem';
+        nextBtn.textContent = '➡️ 下一题';
+        nextBtn.addEventListener('click', () => { currentIndex++; renderQuestion(); });
+        fb.appendChild(nextBtn);
+    }
+
+    async function requestSingleAIAnalysis(q, userAns) {
+        if (!apiKey) { alert('请先在设置中填写DeepSeek API Key'); return; }
+        const correctAns = q.type === 'choice' ? q.options[q.correctIndex] : q.blanks.join('、');
+        const userAnsText = userAns !== null ? (q.type === 'choice' ? q.options[userAns] : userAns.join('、')) : '未填写';
+        const prompt = `你是初中${currentSubject}老师。请先指出这道题考查的知识点，再详细解析题目和正确答案。\n题目：${q.text}\n我的答案：${userAnsText}\n正确答案：${correctAns}`;
+        const fb = document.getElementById('feedback');
+        fb.innerHTML += '<div class="ai-box" id="single-ai-box">⏳ AI解析中...</div>';
+        try {
+            const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }], temperature: 0.5, max_tokens: 500 })
+            });
+            const data = await res.json();
+            const aiBox = document.getElementById('single-ai-box');
+            if (data.choices?.[0]) {
+                aiBox.innerHTML = `<strong>🤖 深度解析：</strong><br>${escapeHtml(data.choices[0].message.content)}`;
+            } else throw new Error(data.error?.message);
+        } catch (e) { document.getElementById('single-ai-box').innerHTML = `❌ 解析失败：${escapeHtml(e.message)}`; }
+    }
+
+    function recordDailyError() {
+        const today = new Date().toISOString().split('T')[0];
+        const rec = dailyErrors.find(d => d.date === today);
+        if (rec) rec.count++; else dailyErrors.push({ date: today, count: 1 });
+        saveDailyErrors();
+    }
+
+    function finishGroup() {
+        let html = `<h4>✅ 本组完成！错误：${groupErrorIds.size} 题</h4>`;
+        if (groupErrorIds.size > 0) html += `<button id="ai-analysis-btn" class="btn btn-outline">🤖 批量分析薄弱点</button>`;
+        document.getElementById('group-result').innerHTML = html;
+        document.getElementById('practice-area').innerHTML = '';
+        if (groupErrorIds.size > 0) {
+            document.getElementById('ai-analysis-btn').addEventListener('click', () => requestPracticeAIAnalysis());
+        }
+        if (currentSource === 'wrong') {
+            const backBtn = document.createElement('button');
+            backBtn.className = 'btn btn-outline btn-sm'; backBtn.textContent = '↩ 返回错题集';
+            backBtn.addEventListener('click', () => switchPanel('wrong'));
+            document.getElementById('group-result').appendChild(backBtn);
+        } else {
+            const backBtn = document.createElement('button');
+            backBtn.className = 'btn btn-outline btn-sm'; backBtn.textContent = '↩ 返回刷题选择';
+            backBtn.addEventListener('click', () => switchPanel('practiceSelect'));
+            document.getElementById('group-result').appendChild(backBtn);
+        }
+    }
+
+    async function requestPracticeAIAnalysis() {
+        if (!apiKey) { alert('请先设置API Key'); return; }
+        const errorQs = questions.filter(q => groupErrorIds.has(q.id));
+        const prompt = `你是初中${currentSubject}老师。请根据以下错题分析薄弱知识点。\n${errorQs.map(q => `题目：${q.text}`).join('\n')}`;
+        const area = document.getElementById('group-result');
+        area.innerHTML += '<div class="ai-box">⏳ AI分析中...</div>';
+        try {
+            const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }], temperature: 0.5, max_tokens: 800 })
+            });
+            const data = await res.json();
+            if (data.choices?.[0]) area.innerHTML += `<div class="ai-box"><strong>🤖 分析：</strong><br>${escapeHtml(data.choices[0].message.content)}</div>`;
+            else throw new Error(data.error?.message);
+        } catch (e) { area.innerHTML += `<div class="ai-box">❌ 失败：${escapeHtml(e.message)}</div>`; }
+    }
+
+    function renderWrongCircles() {
+        document.getElementById('wrong-count-bio').textContent = questions.filter(q => q.subject === '生物' && q.errorCount > 0).length;
+        document.getElementById('wrong-count-geo').textContent = questions.filter(q => q.subject === '地理' && q.errorCount > 0).length;
+    }
+    document.getElementById('wrong-circle-bio').addEventListener('click', () => startWrongPractice('生物'));
+    document.getElementById('wrong-circle-geo').addEventListener('click', () => startWrongPractice('地理'));
+    function startWrongPractice(subject) {
+        let pool = questions.filter(q => q.subject === subject && q.errorCount > 0);
+        if (pool.length === 0) { alert(`没有${subject}错题`); return; }
+        groupQuestions = shuffleArray(pool); currentIndex = 0; currentSubject = subject; currentType = 'all';
+        groupErrorIds = new Set();
+        currentSource = 'wrong';
+        switchPanel('practice');
+        renderPracticeHeader();
+    }
+    document.getElementById('reset-wrong-progress-btn').addEventListener('click', () => {
+        if (confirm('重置所有刷题进度？错题次数保留。')) { progress = {}; saveProgress(); alert('已重置'); switchPanel('home'); }
+    });
+
+    // 知识点背诵
+    let currentKnowSubject = '', currentKnowIdx = 0;
+    function renderKnowledgeCircles() {
+        document.getElementById('know-count-bio').textContent = knowledgeItems.filter(k => k.subject === '生物').length;
+        document.getElementById('know-count-geo').textContent = knowledgeItems.filter(k => k.subject === '地理').length;
+        document.getElementById('knowledge-circles').classList.remove('hidden');
+        document.getElementById('knowledge-memorize-area').classList.add('hidden');
+    }
+    document.getElementById('know-circle-bio').addEventListener('click', () => startKnowledgeMemorize('生物'));
+    document.getElementById('know-circle-geo').addEventListener('click', () => startKnowledgeMemorize('地理'));
+    function startKnowledgeMemorize(subject) {
+        currentKnowSubject = subject;
+        currentKnowIdx = 0;
+        document.getElementById('knowledge-circles').classList.add('hidden');
+        document.getElementById('knowledge-memorize-area').classList.remove('hidden');
+        renderSingleKnowledge();
+    }
+    function renderSingleKnowledge() {
+        const area = document.getElementById('knowledge-memorize-area');
+        const list = knowledgeItems.filter(k => k.subject === currentKnowSubject);
+        if (currentKnowIdx >= list.length) {
+            area.innerHTML = `<div style="text-align:center;padding:2rem;"><h3>🎉 已完成背诵！</h3><button id="back-know" class="btn btn-primary">返回</button></div>`;
+            document.getElementById('back-know').addEventListener('click', () => { renderKnowledgeCircles(); });
+            return;
+        }
+        const k = list[currentKnowIdx];
+        let html = `<div class="question-card">
+            <strong>${currentKnowIdx+1}/${list.length}. ${renderKnowText(k)}</strong>
+            ${k.image ? renderImageMasks(k) : ''}
+            <div style="margin-top:1rem;display:flex;gap:0.5rem;">
+                ${currentKnowIdx>0?'<button id="prev-know" class="btn btn-outline btn-sm">⬅ 上一题</button>':''}
+                <button id="next-know" class="btn btn-primary btn-sm">➡ 下一题</button>
+            </div>
+        </div>`;
+        area.innerHTML = html;
+        area.querySelectorAll('.img-mask-overlay').forEach(m => m.addEventListener('click', function(){this.style.display='none';}));
+        if(currentKnowIdx>0) document.getElementById('prev-know').addEventListener('click',()=>{currentKnowIdx--;renderSingleKnowledge();});
+        document.getElementById('next-know').addEventListener('click',()=>{currentKnowIdx++;renderSingleKnowledge();});
+    }
+    function renderKnowText(item) {
+        return item.text.replace(/\{\{(.+?)\}\}/g, (_,a) => `<span class="blank-mask" onclick="this.outerHTML='<span class=\\'blank-reveal\\'>${escapeHtml(a)}</span>'">🔒 点击</span>`);
+    }
+    function renderImageMasks(item) {
+        return `<div class="img-mask-container" style="max-width:100%;"><img src="${item.image}" style="width:100%; height:auto;">${(item.imageMasks||[]).map(m => `<div class="img-mask-overlay" style="left:${m.x}%;top:${m.y}%;width:${m.w}%;height:${m.h}%;">🔒 点击</div>`).join('')}</div>`;
+    }
+
+    // 添加知识点弹窗
+    document.getElementById('add-knowledge-btn').addEventListener('click', () => openKnowledgeModal());
+    function openKnowledgeModal(k = null) {
+        const modal = document.createElement('div');
+        modal.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100;';
+        modal.innerHTML = `
+            <div class="card" style="max-width:650px;width:90%; max-height:90vh; overflow-y:auto;">
+                <h3>${k?'编辑':'新增'}知识点</h3>
+                <div class="form-group"><label>学科</label><select id="k-subject"><option value="生物" ${k?.subject==='生物'?'selected':''}>生物</option><option value="地理" ${k?.subject==='地理'?'selected':''}>地理</option></select></div>
+                <div class="form-group"><label>内容（用 {{关键词}} 标记填空）</label><textarea id="k-text" rows="3">${escapeHtml(k?.text||'')}</textarea></div>
+                <div class="form-group"><label>图片（可选）</label><input type="file" id="k-image" accept="image/*"></div>
+                <div id="k-image-area" style="margin:1rem 0; ${k?.image?'':'display:none;'}">
+                    <p>🖱️ 在图片上拖动鼠标框选遮罩区域</p>
+                    <div id="k-mask-drawing" class="mask-drawing-area"></div>
+                    <button id="k-clear-masks" class="btn btn-sm btn-outline" style="margin-top:0.5rem;">清除所有遮罩</button>
+                </div>
+                <button id="save-k-btn" class="btn btn-primary">保存</button>
+                <button id="close-k-modal" class="btn btn-outline">取消</button>
+            </div>`;
+        document.body.appendChild(modal);
+
+        let imageData = k?.image || null;
+        let masks = k?.imageMasks ? [...k.imageMasks] : [];
+        const drawingArea = document.getElementById('k-mask-drawing');
+        const imageArea = document.getElementById('k-image-area');
+
+        function renderImageAndMasks() {
+            if (!imageData) { drawingArea.innerHTML = ''; return; }
+            drawingArea.innerHTML = '';
+            const img = document.createElement('img');
+            img.src = imageData;
+            img.onload = () => {
+                drawingArea.appendChild(img);
+                masks.forEach(m => drawMaskOnImage(m));
+            };
+        }
+
+        function drawMaskOnImage(mask) {
+            const img = drawingArea.querySelector('img');
+            if (!img) return;
+            const rectDiv = document.createElement('div');
+            rectDiv.className = 'mask-item';
+            rectDiv.style.left = mask.x + '%';
+            rectDiv.style.top = mask.y + '%';
+            rectDiv.style.width = mask.w + '%';
+            rectDiv.style.height = mask.h + '%';
+            const delBtn = document.createElement('span');
+            delBtn.className = 'delete-mask';
+            delBtn.textContent = '✕';
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                masks = masks.filter(m => !(m.x === mask.x && m.y === mask.y && m.w === mask.w && m.h === mask.h));
+                drawingArea.removeChild(rectDiv);
+            });
+            rectDiv.appendChild(delBtn);
+            drawingArea.appendChild(rectDiv);
+        }
+
+        let startX, startY, isDrawing = false, drawingRectDiv = null;
+        drawingArea.addEventListener('mousedown', (e) => {
+            if (e.target !== drawingArea && e.target !== drawingArea.querySelector('img')) return;
+            const rect = drawingArea.getBoundingClientRect();
+            startX = (e.clientX - rect.left) / rect.width * 100;
+            startY = (e.clientY - rect.top) / rect.height * 100;
+            isDrawing = true;
+            drawingRectDiv = document.createElement('div');
+            drawingRectDiv.className = 'drawing-rect';
+            drawingRectDiv.style.left = startX + '%';
+            drawingRectDiv.style.top = startY + '%';
+            drawingRectDiv.style.width = '0%';
+            drawingRectDiv.style.height = '0%';
+            drawingArea.appendChild(drawingRectDiv);
+            e.preventDefault();
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDrawing || !drawingRectDiv) return;
+            const rect = drawingArea.getBoundingClientRect();
+            const currentX = (e.clientX - rect.left) / rect.width * 100;
+            const currentY = (e.clientY - rect.top) / rect.height * 100;
+            const left = Math.min(startX, currentX);
+            const top = Math.min(startY, currentY);
+            const width = Math.abs(currentX - startX);
+            const height = Math.abs(currentY - startY);
+            drawingRectDiv.style.left = left + '%';
+            drawingRectDiv.style.top = top + '%';
+            drawingRectDiv.style.width = width + '%';
+            drawingRectDiv.style.height = height + '%';
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (!isDrawing || !drawingRectDiv) return;
+            const left = parseFloat(drawingRectDiv.style.left);
+            const top = parseFloat(drawingRectDiv.style.top);
+            const width = parseFloat(drawingRectDiv.style.width);
+            const height = parseFloat(drawingRectDiv.style.height);
+            if (width > 1 && height > 1) {
+                const newMask = { x: left, y: top, w: width, h: height };
+                masks.push(newMask);
+                drawMaskOnImage(newMask);
+            }
+            if (drawingRectDiv) { drawingArea.removeChild(drawingRectDiv); drawingRectDiv = null; }
+            isDrawing = false;
+        });
+
+        document.getElementById('k-clear-masks').addEventListener('click', () => { masks = []; renderImageAndMasks(); });
+        document.getElementById('k-image').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => { imageData = ev.target.result; masks = []; imageArea.style.display = 'block'; renderImageAndMasks(); };
+            reader.readAsDataURL(file);
+        });
+        document.getElementById('close-k-modal').addEventListener('click', () => document.body.removeChild(modal));
+        document.getElementById('save-k-btn').addEventListener('click', () => {
+            const subject = document.getElementById('k-subject').value;
+            const text = document.getElementById('k-text').value.trim();
+            if (!text) return alert('请输入内容');
+            const newK = { id: k?.id || Date.now().toString(), subject, text, image: imageData, imageMasks: masks };
+            if (k) {
+                const idx = knowledgeItems.findIndex(item => item.id === k.id);
+                if (idx !== -1) knowledgeItems[idx] = newK;
+            } else knowledgeItems.push(newK);
+            saveKnowledge();
+            document.body.removeChild(modal);
+            renderKnowledgeCircles();
+        });
+        if (imageData) renderImageAndMasks();
+    }
+
+    // 添加题目弹窗
+    document.getElementById('add-question-btn').addEventListener('click', () => {
+        const modal = document.createElement('div');
+        modal.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100;';
+        modal.innerHTML = `
+            <div class="card" style="max-width:500px;width:90%;">
+                <h3>添加题目</h3>
+                <div class="form-group"><label>学科</label><select id="add-subject"><option>生物</option><option>地理</option></select></div>
+                <div class="form-group"><label>类型</label><select id="add-type"><option value="choice">选择题</option><option value="fill">填空题</option></select></div>
+                <div class="form-group"><label>题目内容（填空用 {{答案}}）</label><textarea id="add-text" rows="3"></textarea></div>
+                <div class="form-group"><label>图片（可选）</label><input type="file" id="add-image" accept="image/*"><div id="add-img-preview"></div></div>
+                <div id="add-choice-area">
+                    <label>选项（点击☆标正确答案）</label>
+                    <div id="add-options">
+                        <div><input placeholder="A" class="add-opt"><span class="star" data-idx="0">☆</span></div>
+                        <div><input placeholder="B" class="add-opt"><span class="star" data-idx="1">☆</span></div>
+                        <div><input placeholder="C" class="add-opt"><span class="star" data-idx="2">☆</span></div>
+                        <div><input placeholder="D" class="add-opt"><span class="star" data-idx="3">☆</span></div>
+                    </div>
+                </div>
+                <button id="save-add" class="btn btn-primary">保存</button>
+                <button id="close-add" class="btn btn-outline">取消</button>
+            </div>`;
+        document.body.appendChild(modal);
+        let correctIdx = 0, imageData = null;
+        document.getElementById('add-image').addEventListener('change', e => {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => { imageData = ev.target.result; document.getElementById('add-img-preview').innerHTML = `<img src="${imageData}" style="max-width:200px;">`; };
+            reader.readAsDataURL(file);
+        });
+        modal.querySelectorAll('.star').forEach(s => s.addEventListener('click', () => {
+            correctIdx = parseInt(s.dataset.idx);
+            modal.querySelectorAll('.star').forEach(s => s.textContent = '☆');
+            s.textContent = '★';
+        }));
+        document.getElementById('add-type').addEventListener('change', e => document.getElementById('add-choice-area').style.display = e.target.value === 'choice' ? 'block' : 'none');
+        document.getElementById('close-add').addEventListener('click', () => document.body.removeChild(modal));
+        document.getElementById('save-add').addEventListener('click', () => {
+            const subject = document.getElementById('add-subject').value, type = document.getElementById('add-type').value, text = document.getElementById('add-text').value.trim();
+            if (!text) return alert('请输入题目');
+            const q = { id: Date.now().toString(), subject, type, text, image: imageData, errorCount: 0 };
+            if (type === 'choice') {
+                const opts = [...modal.querySelectorAll('.add-opt')].map(i => i.value.trim()).filter(v => v); if (opts.length < 2) return alert('至少两个选项');
+                q.options = opts; q.correctIndex = correctIdx;
+            } else {
+                const blanks = [...text.matchAll(/\{\{(.+?)\}\}/g)].map(m => m[1].trim()); if (blanks.length === 0) return alert('请用 {{}} 标记填空');
+                q.blanks = blanks;
+            }
+            questions.push(q); saveQuestions();
+            document.body.removeChild(modal); renderHome(); alert('题目已添加');
+        });
+    });
+
+    document.getElementById('reset-all-progress-btn').addEventListener('click', () => {
+        if (confirm('确定重置所有刷题进度？错题次数不变。')) { progress = {}; saveProgress(); alert('已重置'); renderHome(); }
+    });
+
+    // 统计图表
+    function renderStatsChart() {
+        const canvas = document.getElementById('errorChart'), ctx = canvas.getContext('2d');
+        const days = []; for (let i=6; i>=0; i--) { const d = new Date(); d.setDate(d.getDate()-i); days.push(d.toISOString().split('T')[0]); }
+        const counts = days.map(date => { const r = dailyErrors.find(d => d.date === date); return r ? r.count : 0; });
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        const barWidth = 40, maxCount = Math.max(...counts,1), scale = (canvas.height-40)/maxCount;
+        days.forEach((day,i) => {
+            const x = 50 + i*55, h = counts[i]*scale;
+            ctx.fillStyle = '#2ecc71'; ctx.fillRect(x, canvas.height-h-20, barWidth, h);
+            ctx.fillStyle = '#333'; ctx.font='12px sans-serif'; ctx.fillText(day.slice(5), x, canvas.height-5); ctx.fillText(counts[i], x+10, canvas.height-h-25);
+        });
+        document.getElementById('ai-stats-result').innerHTML = '';
+    }
+    document.getElementById('ai-stats-analysis-btn').addEventListener('click', async () => {
+        if (!apiKey) { alert('请先设置API Key'); return; }
+        const wrongQs = questions.filter(q => q.errorCount > 0);
+        if (wrongQs.length === 0) { alert('暂无错题'); return; }
+        const prompt = `你是初中会考辅导老师。请根据以下所有错题，分析学生整体薄弱的知识点，并给出针对性学习建议。\n${wrongQs.map(q => `[${q.subject}] ${q.text}`).join('\n')}`;
+        const area = document.getElementById('ai-stats-result');
+        area.innerHTML = '<div class="ai-box">⏳ 正在分析薄弱点...</div>';
+        try {
+            const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }], temperature: 0.5, max_tokens: 600 })
+            });
+            const data = await res.json();
+            if (data.choices?.[0]) area.innerHTML = `<div class="ai-box"><strong>🤖 薄弱点分析：</strong><br>${escapeHtml(data.choices[0].message.content)}</div>`;
+            else throw new Error(data.error?.message);
+        } catch (e) { area.innerHTML = `<div class="ai-box">❌ 分析失败：${escapeHtml(e.message)}</div>`; }
+    });
+
+    document.getElementById('save-api-key').addEventListener('click', () => { apiKey = document.getElementById('api-key-input').value.trim(); localStorage.setItem(API_KEY_STORE, apiKey); alert('已保存'); });
+    document.getElementById('import-btn').addEventListener('click', () => { try { const d = JSON.parse(document.getElementById('import-json').value); questions.push(...d.map(q => ({...q, errorCount: q.errorCount||0}))); saveQuestions(); renderHome(); alert('导入成功'); } catch(e) { alert('JSON格式错误'); } });
+    document.getElementById('export-btn').addEventListener('click', () => { const blob = new Blob([JSON.stringify(questions)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='questions.json'; a.click(); });
+
+    function shuffleArray(arr) { const a = [...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+    function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    loadAll();
+    switchPanel('home');
+    updateCountdown();
+})();
+</script>
+</body>
+</html>
