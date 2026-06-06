@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📗 会考刷题系统 · 最终版</title>
+    <title>📗 会考刷题系统 · 背诵修复版</title>
     <style>
         :root {
             --primary: #2ecc71; --danger: #e74c3c; --bg: #f4f6ff;
@@ -65,7 +65,6 @@
         .practice-column.geo-col { border: 2px solid #d1ecf1; }
         .type-row { display: flex; gap: 1.5rem; justify-content: center; align-items: center; flex-wrap: wrap; }
 
-        /* 响应式设计 */
         @media (max-width: 600px) {
             .header h1 { font-size: 1.8rem; }
             .countdown { font-size: 1rem; }
@@ -154,9 +153,9 @@
         </div>
     </div>
 
-    <!-- 题库管理（逐题浏览） -->
+    <!-- 题库管理 -->
     <div id="panel-library" class="card hidden">
-        <div style="display:flex; gap:1rem; margin-bottom:1rem; align-items:center;">
+        <div style="display:flex; gap:1rem; margin-bottom:1rem;">
             <select id="lib-subject-filter"><option value="all">全部学科</option><option value="生物">生物</option><option value="地理">地理</option></select>
             <button id="add-question-btn2" class="btn btn-primary btn-sm">＋ 添加</button>
         </div>
@@ -235,11 +234,11 @@
 
 <script>
 (function() {
-    const STORAGE_QUESTIONS = 'exam_questions_final';
-    const STORAGE_PROGRESS = 'exam_progress_final';
-    const STORAGE_DAILY_ERRORS = 'exam_daily_errors_final';
-    const STORAGE_KNOWLEDGE = 'exam_knowledge_final';
-    const API_KEY_STORE = 'deepseek_key_final';
+    const STORAGE_QUESTIONS = 'exam_questions_v23';
+    const STORAGE_PROGRESS = 'exam_progress_v23';
+    const STORAGE_DAILY_ERRORS = 'exam_daily_errors_v23';
+    const STORAGE_KNOWLEDGE = 'exam_knowledge_v23';
+    const API_KEY_STORE = 'deepseek_key_v23';
 
     let questions = [];
     let progress = {};
@@ -318,6 +317,7 @@
     document.getElementById('nav-settings').addEventListener('click', () => switchPanel('settings'));
     document.getElementById('open-library-btn-home').addEventListener('click', () => switchPanel('library'));
 
+    // 首页渲染
     function renderHome() {
         function getSubjectProgressCount(subject) {
             let completedSet = new Set();
@@ -617,12 +617,23 @@
             </div>
         </div>`;
         area.innerHTML = html;
+
+        // 绑定图片遮罩点击
         area.querySelectorAll('.img-mask-overlay').forEach(m => m.addEventListener('click', function(){this.style.display='none';}));
-        if(currentKnowIdx>0) document.getElementById('prev-know').addEventListener('click',()=>{currentKnowIdx--;renderSingleKnowledge();});
+        // 绑定填空遮盖点击
+        area.querySelectorAll('.blank-mask').forEach(span => {
+            span.addEventListener('click', function() {
+                this.outerHTML = `<span class="blank-reveal">${this.dataset.answer}</span>`;
+            });
+        });
+
+        if (currentKnowIdx>0) document.getElementById('prev-know').addEventListener('click',()=>{currentKnowIdx--;renderSingleKnowledge();});
         document.getElementById('next-know').addEventListener('click',()=>{currentKnowIdx++;renderSingleKnowledge();});
     }
     function renderKnowText(item) {
-        return item.text.replace(/\{\{(.+?)\}\}/g, (_,a) => `<span class="blank-mask" onclick="this.outerHTML='<span class=\\'blank-reveal\\'>${escapeHtml(a)}</span>'">🔒 点击</span>`);
+        return item.text.replace(/\{\{(.+?)\}\}/g, (_, a) => {
+            return `<span class="blank-mask" data-answer="${escapeHtml(a)}">🔒 点击</span>`;
+        });
     }
     function renderImageMasks(item) {
         return `<div class="img-mask-container" style="max-width:100%;"><img src="${item.image}" style="width:100%; height:auto;">${(item.imageMasks||[]).map(m => `<div class="img-mask-overlay" style="left:${m.x}%;top:${m.y}%;width:${m.w}%;height:${m.h}%;">🔒 点击</div>`).join('')}</div>`;
@@ -635,15 +646,14 @@
         libraryBrowseList = subj === 'all' ? [...questions] : questions.filter(q => q.subject === subj);
         libraryBrowseIdx = 0;
         if (libraryBrowseList.length === 0) {
-            document.getElementById('library-browse-area').innerHTML = '<p style="text-align:center;">暂无题目，请添加</p>';
+            document.getElementById('library-browse-area').innerHTML = '<p>暂无题目</p>';
         } else {
             renderLibraryQuestion();
         }
     }
-
     function renderLibraryQuestion() {
         if (libraryBrowseIdx >= libraryBrowseList.length) {
-            document.getElementById('library-browse-area').innerHTML = '<p style="text-align:center;">已浏览全部题目</p>';
+            document.getElementById('library-browse-area').innerHTML = '<p>已浏览全部题目</p>';
             return;
         }
         const q = libraryBrowseList[libraryBrowseIdx];
@@ -684,7 +694,7 @@
                 libraryBrowseList = libraryBrowseList.filter(q2 => q2.id !== q.id);
                 if (libraryBrowseIdx >= libraryBrowseList.length) libraryBrowseIdx = Math.max(0, libraryBrowseList.length - 1);
                 if (libraryBrowseList.length === 0) {
-                    document.getElementById('library-browse-area').innerHTML = '<p style="text-align:center;">暂无题目</p>';
+                    document.getElementById('library-browse-area').innerHTML = '<p>暂无题目</p>';
                 } else {
                     renderLibraryQuestion();
                 }
@@ -781,6 +791,140 @@
 
     document.getElementById('add-question-btn').addEventListener('click', () => openQuestionModal());
     document.getElementById('add-question-btn2').addEventListener('click', () => openQuestionModal());
+
+    // ====== 知识点添加按钮修复 ======
+    document.getElementById('add-knowledge-btn').addEventListener('click', () => openKnowledgeModal());
+
+    function openKnowledgeModal(k = null) {
+        const isEdit = !!k;
+        const modal = document.createElement('div');
+        modal.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100;';
+        modal.innerHTML = `
+            <div class="card" style="max-width:650px;width:90%; max-height:90vh; overflow-y:auto;">
+                <h3>${isEdit?'编辑':'新增'}知识点</h3>
+                <div class="form-group"><label>学科</label><select id="k-subject"><option value="生物" ${k?.subject==='生物'?'selected':''}>生物</option><option value="地理" ${k?.subject==='地理'?'selected':''}>地理</option></select></div>
+                <div class="form-group"><label>内容（用 {{关键词}} 标记填空）</label><textarea id="k-text" rows="3">${escapeHtml(k?.text||'')}</textarea></div>
+                <div class="form-group"><label>图片（可选）</label><input type="file" id="k-image" accept="image/*"></div>
+                <div id="k-image-area" style="margin:1rem 0; ${k?.image?'':'display:none;'}">
+                    <p style="font-weight:600;">🖱️ 在图片上拖动鼠标框选遮罩区域</p>
+                    <div id="k-mask-drawing" class="mask-drawing-area"></div>
+                    <button id="k-clear-masks" class="btn btn-sm btn-outline" style="margin-top:0.5rem;">清除所有遮罩</button>
+                </div>
+                <button id="save-k-btn" class="btn btn-primary">保存</button>
+                <button id="close-k-modal" class="btn btn-outline">取消</button>
+            </div>`;
+        document.body.appendChild(modal);
+
+        let imageData = k?.image || null;
+        let masks = k?.imageMasks ? [...k.imageMasks] : [];
+        const drawingArea = document.getElementById('k-mask-drawing');
+        const imageArea = document.getElementById('k-image-area');
+
+        function renderImageAndMasks() {
+            if (!imageData) { drawingArea.innerHTML = ''; return; }
+            drawingArea.innerHTML = '';
+            const img = document.createElement('img');
+            img.src = imageData;
+            img.onload = () => {
+                drawingArea.appendChild(img);
+                masks.forEach(m => drawMaskOnImage(m));
+            };
+        }
+
+        function drawMaskOnImage(mask) {
+            const img = drawingArea.querySelector('img');
+            if (!img) return;
+            const rectDiv = document.createElement('div');
+            rectDiv.className = 'mask-item';
+            rectDiv.style.left = mask.x + '%';
+            rectDiv.style.top = mask.y + '%';
+            rectDiv.style.width = mask.w + '%';
+            rectDiv.style.height = mask.h + '%';
+            const delBtn = document.createElement('span');
+            delBtn.className = 'delete-mask';
+            delBtn.textContent = '✕';
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                masks = masks.filter(m => !(m.x === mask.x && m.y === mask.y && m.w === mask.w && m.h === mask.h));
+                drawingArea.removeChild(rectDiv);
+            });
+            rectDiv.appendChild(delBtn);
+            drawingArea.appendChild(rectDiv);
+        }
+
+        let startX, startY, isDrawing = false, drawingRectDiv = null;
+        drawingArea.addEventListener('mousedown', (e) => {
+            if (e.target !== drawingArea && e.target !== drawingArea.querySelector('img')) return;
+            const rect = drawingArea.getBoundingClientRect();
+            startX = (e.clientX - rect.left) / rect.width * 100;
+            startY = (e.clientY - rect.top) / rect.height * 100;
+            isDrawing = true;
+            drawingRectDiv = document.createElement('div');
+            drawingRectDiv.className = 'drawing-rect';
+            drawingRectDiv.style.left = startX + '%';
+            drawingRectDiv.style.top = startY + '%';
+            drawingRectDiv.style.width = '0%';
+            drawingRectDiv.style.height = '0%';
+            drawingArea.appendChild(drawingRectDiv);
+            e.preventDefault();
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDrawing || !drawingRectDiv) return;
+            const rect = drawingArea.getBoundingClientRect();
+            const currentX = (e.clientX - rect.left) / rect.width * 100;
+            const currentY = (e.clientY - rect.top) / rect.height * 100;
+            const left = Math.min(startX, currentX);
+            const top = Math.min(startY, currentY);
+            const width = Math.abs(currentX - startX);
+            const height = Math.abs(currentY - startY);
+            drawingRectDiv.style.left = left + '%';
+            drawingRectDiv.style.top = top + '%';
+            drawingRectDiv.style.width = width + '%';
+            drawingRectDiv.style.height = height + '%';
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (!isDrawing || !drawingRectDiv) return;
+            const left = parseFloat(drawingRectDiv.style.left);
+            const top = parseFloat(drawingRectDiv.style.top);
+            const width = parseFloat(drawingRectDiv.style.width);
+            const height = parseFloat(drawingRectDiv.style.height);
+            if (width > 1 && height > 1) {
+                const newMask = { x: left, y: top, w: width, h: height };
+                masks.push(newMask);
+                drawMaskOnImage(newMask);
+            }
+            if (drawingRectDiv) { drawingArea.removeChild(drawingRectDiv); drawingRectDiv = null; }
+            isDrawing = false;
+        });
+
+        document.getElementById('k-clear-masks').addEventListener('click', () => { masks = []; renderImageAndMasks(); });
+        document.getElementById('k-image').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => { imageData = ev.target.result; masks = []; imageArea.style.display = 'block'; renderImageAndMasks(); };
+            reader.readAsDataURL(file);
+        });
+        document.getElementById('close-k-modal').addEventListener('click', () => document.body.removeChild(modal));
+        document.getElementById('save-k-btn').addEventListener('click', () => {
+            const subject = document.getElementById('k-subject').value;
+            const text = document.getElementById('k-text').value.trim();
+            if (!text) return alert('请输入内容');
+            const newK = { id: k?.id || Date.now().toString(), subject, text, image: imageData, imageMasks: masks };
+            if (k) {
+                const idx = knowledgeItems.findIndex(item => item.id === k.id);
+                if (idx !== -1) knowledgeItems[idx] = newK;
+            } else {
+                knowledgeItems.push(newK);
+            }
+            saveKnowledge();
+            document.body.removeChild(modal);
+            renderKnowledgeCircles();
+        });
+        if (imageData) renderImageAndMasks();
+    }
 
     document.getElementById('reset-all-progress-btn').addEventListener('click', () => {
         if (confirm('重置所有刷题进度？错题次数不变。')) { progress = {}; saveProgress(); alert('已重置'); renderHome(); }
