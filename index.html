@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📗 会考刷题系统 · 知识点筛选</title>
+    <title>📗 会考刷题系统 · 最终完整版</title>
     <style>
         :root {
             --primary: #2ecc71; --danger: #e74c3c; --bg: #f4f6ff;
@@ -64,6 +64,11 @@
         .practice-column.bio-col { border: 2px solid #d4edda; }
         .practice-column.geo-col { border: 2px solid #d1ecf1; }
         .type-row { display: flex; gap: 1.5rem; justify-content: center; align-items: center; flex-wrap: wrap; }
+        .mode-btn.active {
+            background: var(--primary) !important;
+            color: white !important;
+            border-color: var(--primary) !important;
+        }
 
         @media (max-width: 600px) {
             .header h1 { font-size: 1.8rem; }
@@ -118,7 +123,7 @@
 
     <!-- 刷题选择页 -->
     <div id="panel-practice-select" class="card hidden">
-        <h3 style="text-align:center; margin-bottom:1.5rem;">选择刷题类型</h3>
+        <h3 style="text-align:center;">选择刷题类型</h3>
         <div class="practice-columns">
             <div class="practice-column bio-col">
                 <h4 style="color:#2ecc71;">🧬 生物</h4>
@@ -150,6 +155,17 @@
                     </div>
                 </div>
             </div>
+        </div>
+        <!-- 板块筛选区（包含刷题模式按钮） -->
+        <div id="category-filter-area" class="hidden" style="margin-top:1rem;">
+            <div id="practice-mode-selector" style="text-align:center; margin-bottom:1rem;">
+                <span>刷题模式：</span>
+                <button class="btn btn-sm mode-btn active" data-mode="sequential">顺序刷题</button>
+                <button class="btn btn-sm mode-btn" data-mode="random">随机刷题</button>
+            </div>
+            <div id="category-main-area"></div>
+            <div id="category-sub-area" style="margin-top:0.5rem;"></div>
+            <div id="start-practice-area" style="margin-top:1rem;"></div>
         </div>
     </div>
 
@@ -236,17 +252,20 @@
 
 <script>
 (function() {
-    const STORAGE_QUESTIONS = 'exam_questions_v25';
-    const STORAGE_PROGRESS = 'exam_progress_v25';
-    const STORAGE_DAILY_ERRORS = 'exam_daily_errors_v25';
-    const STORAGE_KNOWLEDGE = 'exam_knowledge_v25';
-    const API_KEY_STORE = 'deepseek_key_v25';
+    // ==================== 数据存储 ====================
+    const STORAGE_QUESTIONS = 'exam_questions_final';
+    const STORAGE_PROGRESS = 'exam_progress_final';
+    const STORAGE_DAILY_ERRORS = 'exam_daily_errors_final';
+    const STORAGE_KNOWLEDGE = 'exam_knowledge_final';
+    const API_KEY_STORE = 'deepseek_key_final';
 
     let questions = [];
     let progress = {};
     let dailyErrors = [];
     let knowledgeItems = [];
     let apiKey = localStorage.getItem(API_KEY_STORE) || '';
+    let currentPracticeMode = 'sequential';
+    let memorizeMode = 'sequential';
 
     function loadAll() {
         try { questions = JSON.parse(localStorage.getItem(STORAGE_QUESTIONS)) || []; } catch(e){}
@@ -319,6 +338,7 @@
     document.getElementById('nav-settings').addEventListener('click', () => switchPanel('settings'));
     document.getElementById('open-library-btn-home').addEventListener('click', () => switchPanel('library'));
 
+    // ==================== 首页 ====================
     function renderHome() {
         function getSubjectProgressCount(subject) {
             let completedSet = new Set();
@@ -351,23 +371,87 @@
             const { total, completed } = getTypeStats(c.sub, c.type);
             document.getElementById(c.id).textContent = `${completed}/${total}`;
         });
+        document.getElementById('category-filter-area').classList.add('hidden');
     }
 
-    document.getElementById('practice-bio-choice').addEventListener('click', () => startTypePractice('生物', 'choice'));
-    document.getElementById('practice-bio-fill').addEventListener('click', () => startTypePractice('生物', 'fill'));
-    document.getElementById('practice-geo-choice').addEventListener('click', () => startTypePractice('地理', 'choice'));
-    document.getElementById('practice-geo-fill').addEventListener('click', () => startTypePractice('地理', 'fill'));
+    // ==================== 刷题板块筛选 + 模式按钮 ====================
+    function showCategoryFilter(subject, type) {
+        const area = document.getElementById('category-filter-area');
+        area.classList.remove('hidden');
+        const modeBtns = area.querySelectorAll('#practice-mode-selector .mode-btn');
+        modeBtns.forEach(b => b.classList.remove('active'));
+        const activeModeBtn = area.querySelector(`#practice-mode-selector .mode-btn[data-mode="${currentPracticeMode}"]`);
+        if (activeModeBtn) activeModeBtn.classList.add('active');
 
+        const pool = questions.filter(q => q.subject === subject && q.type === type);
+        const mainCategories = [...new Set(pool.map(q => q.mainCategory || '未分类'))];
+        const mainArea = document.getElementById('category-main-area');
+        mainArea.innerHTML = `<div><strong>主版块：</strong></div>`;
+        mainCategories.forEach(main => {
+            mainArea.innerHTML += `<button class="btn btn-sm btn-outline main-cat-btn" data-main="${escapeHtml(main)}">${escapeHtml(main)}</button> `;
+        });
+        mainArea.innerHTML += `<button class="btn btn-sm btn-outline main-cat-btn" data-main="all">全部</button>`;
+        document.getElementById('category-sub-area').innerHTML = '';
+        document.getElementById('start-practice-area').innerHTML = '';
+
+        document.getElementById('practice-mode-selector').addEventListener('click', function(e) {
+            const btn = e.target.closest('.mode-btn');
+            if (!btn) return;
+            currentPracticeMode = btn.dataset.mode;
+            this.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+
+        mainArea.querySelectorAll('.main-cat-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const main = this.dataset.main;
+                mainArea.querySelectorAll('.main-cat-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                showSubCategoriesForPractice(subject, type, main);
+            });
+        });
+    }
+
+    function showSubCategoriesForPractice(subject, type, main) {
+        const pool = questions.filter(q => q.subject === subject && q.type === type);
+        let filtered = main === 'all' ? pool : pool.filter(q => (q.mainCategory || '未分类') === main);
+        const subCats = [...new Set(filtered.map(q => q.subCategory || ''))].filter(s => s);
+        const subArea = document.getElementById('category-sub-area');
+        subArea.innerHTML = '<strong>子版块：</strong>';
+        subCats.forEach(sub => {
+            subArea.innerHTML += `<button class="btn btn-sm btn-outline sub-cat-btn" data-sub="${escapeHtml(sub)}">${escapeHtml(sub)}</button> `;
+        });
+        subArea.innerHTML += `<button class="btn btn-sm btn-outline sub-cat-btn" data-sub="all">全部子版块</button>`;
+        document.getElementById('start-practice-area').innerHTML = '';
+        subArea.querySelectorAll('.sub-cat-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const sub = this.dataset.sub;
+                subArea.querySelectorAll('.sub-cat-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('start-practice-area').innerHTML = `<button id="start-practice-btn" class="btn btn-primary">开始刷题</button>`;
+                document.getElementById('start-practice-btn').addEventListener('click', () => {
+                    startTypePracticeWithCategory(subject, type, main, sub);
+                });
+            });
+        });
+    }
+
+    document.getElementById('practice-bio-choice').addEventListener('click', () => showCategoryFilter('生物', 'choice'));
+    document.getElementById('practice-bio-fill').addEventListener('click', () => showCategoryFilter('生物', 'fill'));
+    document.getElementById('practice-geo-choice').addEventListener('click', () => showCategoryFilter('地理', 'choice'));
+    document.getElementById('practice-geo-fill').addEventListener('click', () => showCategoryFilter('地理', 'fill'));
+
+    // ==================== 刷题逻辑 ====================
     let groupQuestions = [], currentIndex = 0, currentSubject = '', currentType = '', groupErrorIds = new Set();
     let currentSource = 'practice';
 
-    function startTypePractice(subject, type) {
-        const stats = getTypeStats(subject, type);
-        if (stats.total === 0) { alert(`还没有${subject}${type === 'choice' ? '选择题' : '填空题'}`); return; }
+    function startTypePracticeWithCategory(subject, type, main, sub) {
         const tp = getTypeProgress(subject, type);
-        const pool = questions.filter(q => q.subject === subject && q.type === type && !tp.completed.includes(q.id));
-        if (pool.length === 0) { alert('所有题目已完成，请重置进度'); return; }
-        groupQuestions = shuffleArray(pool);
+        let pool = questions.filter(q => q.subject === subject && q.type === type && !tp.completed.includes(q.id));
+        if (main !== 'all') pool = pool.filter(q => (q.mainCategory || '未分类') === main);
+        if (sub && sub !== 'all') pool = pool.filter(q => q.subCategory === sub);
+        if (pool.length === 0) { alert('没有符合条件的题目'); return; }
+        groupQuestions = currentPracticeMode === 'random' ? shuffleArray(pool) : [...pool];
         currentIndex = 0; currentSubject = subject; currentType = type;
         groupErrorIds = new Set();
         currentSource = 'practice';
@@ -503,7 +587,7 @@
         const correctAns = q.type === 'choice' ? q.options[q.correctIndex] : q.blanks.join('、');
         const userAnsText = userAns !== null ? (q.type === 'choice' ? q.options[userAns] : userAns.join('、')) : '未填写';
         const hasImage = q.image ? '（题目包含图片，请结合常见考点进行分析）' : '';
-        const prompt = `你是初中${currentSubject}老师。请用最通俗易懂的语言，像给基础薄弱的同学讲解一样，先告诉我这道题考的是哪个知识点，再用简单的话解释为什么选这个答案，最后如果可能，给一个巧记方法。${hasImage}\n题目：${q.text}\n我的答案：${userAnsText}\n正确答案：${correctAns}。请务必只根据上述答案分析，不要添加未提供的知识。`;
+        const prompt = `你是初中${currentSubject}老师。请用最通俗易懂的语言，像给基础薄弱的同学讲解一样，先告诉我这道题考的是哪个知识点，再用简单的话解释为什么选这个答案，最后如果可能，给一个巧记方法。${hasImage}\n题目：${q.text}\n我的答案：${userAnsText}\n正确答案：${correctAns}。`;
         const fb = document.getElementById('feedback');
         fb.innerHTML += '<div class="ai-box" id="single-ai-box">⏳ AI解析中...</div>';
         try {
@@ -564,6 +648,7 @@
         } catch (e) { area.innerHTML += `<div class="ai-box">❌ 失败：${escapeHtml(e.message)}</div>`; }
     }
 
+    // ==================== 错题集 ====================
     function renderWrongCircles() {
         document.getElementById('wrong-count-bio').textContent = questions.filter(q => q.subject === '生物' && q.errorCount > 0).length;
         document.getElementById('wrong-count-geo').textContent = questions.filter(q => q.subject === '地理' && q.errorCount > 0).length;
@@ -583,7 +668,7 @@
         if (confirm('重置所有刷题进度？错题次数保留。')) { progress = {}; saveProgress(); alert('已重置'); switchPanel('home'); }
     });
 
-    // 知识点背诵
+    // ==================== 知识点背诵（板块 + 模式按钮） ====================
     let currentKnowSubject = '', currentKnowIdx = 0;
     function renderKnowledgeCircles() {
         document.getElementById('know-count-bio').textContent = knowledgeItems.filter(k => k.subject === '生物').length;
@@ -592,19 +677,96 @@
         document.getElementById('knowledge-memorize-area').classList.add('hidden');
         document.getElementById('knowledge-manage-area').classList.add('hidden');
     }
-    document.getElementById('know-circle-bio').addEventListener('click', () => startKnowledgeMemorize('生物'));
-    document.getElementById('know-circle-geo').addEventListener('click', () => startKnowledgeMemorize('地理'));
-    function startKnowledgeMemorize(subject) {
+    document.getElementById('know-circle-bio').addEventListener('click', () => enterKnowledgeSubject('生物'));
+    document.getElementById('know-circle-geo').addEventListener('click', () => enterKnowledgeSubject('地理'));
+
+    function enterKnowledgeSubject(subject) {
         currentKnowSubject = subject;
-        currentKnowIdx = 0;
+        const items = knowledgeItems.filter(k => k.subject === subject);
+        if (items.length === 0) { alert('该学科暂无知识点'); return; }
         document.getElementById('knowledge-circles').classList.add('hidden');
-        document.getElementById('knowledge-memorize-area').classList.remove('hidden');
         document.getElementById('knowledge-manage-area').classList.add('hidden');
-        renderSingleKnowledge();
+        document.getElementById('knowledge-memorize-area').classList.remove('hidden');
+        renderCategorySelection(subject);
     }
-    function renderSingleKnowledge() {
+
+    function renderCategorySelection(subject) {
         const area = document.getElementById('knowledge-memorize-area');
-        const list = knowledgeItems.filter(k => k.subject === currentKnowSubject);
+        const items = knowledgeItems.filter(k => k.subject === subject);
+        const mainCategories = [...new Set(items.map(k => k.mainCategory || '未分类'))];
+        let html = `<div style="margin-bottom:1rem;"><button id="back-to-know-circles" class="btn btn-outline btn-sm">↩ 返回</button></div>`;
+        html += `<h3>选择版块背诵</h3>`;
+        html += `<div><strong>主版块：</strong>`;
+        mainCategories.forEach(main => {
+            html += `<button class="btn btn-sm btn-outline main-cat-btn" data-main="${escapeHtml(main)}">${escapeHtml(main)}</button> `;
+        });
+        html += `<button class="btn btn-sm btn-outline main-cat-btn" data-main="all">全部</button></div>`;
+        html += `<div id="sub-category-area" style="margin-top:0.5rem;"></div>`;
+        html += `<div id="memorize-mode-selector" style="margin-top:1rem; text-align:center;">
+            <strong>背诵模式：</strong>
+            <button class="btn btn-sm mode-btn ${memorizeMode==='sequential'?'active':''}" data-mode="sequential">正序</button>
+            <button class="btn btn-sm mode-btn ${memorizeMode==='random'?'active':''}" data-mode="random">随机</button>
+        </div>`;
+        html += `<div id="start-memorize-area" style="margin-top:1rem;"></div>`;
+        area.innerHTML = html;
+
+        document.getElementById('back-to-know-circles').addEventListener('click', () => renderKnowledgeCircles());
+
+        document.getElementById('memorize-mode-selector').addEventListener('click', function(e) {
+            const btn = e.target.closest('.mode-btn');
+            if (!btn) return;
+            memorizeMode = btn.dataset.mode;
+            this.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+
+        area.querySelectorAll('.main-cat-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const main = this.dataset.main;
+                area.querySelectorAll('.main-cat-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                showSubCategoriesForKnowledge(subject, main);
+            });
+        });
+    }
+
+    function showSubCategoriesForKnowledge(subject, main) {
+        const items = knowledgeItems.filter(k => k.subject === subject);
+        let filtered = main === 'all' ? items : items.filter(k => (k.mainCategory || '未分类') === main);
+        const subCats = [...new Set(filtered.map(k => k.subCategory || ''))].filter(s => s);
+        const subArea = document.getElementById('sub-category-area');
+        subArea.innerHTML = '<strong>子版块：</strong>';
+        subCats.forEach(sub => {
+            subArea.innerHTML += `<button class="btn btn-sm btn-outline sub-cat-btn" data-sub="${escapeHtml(sub)}">${escapeHtml(sub)}</button> `;
+        });
+        subArea.innerHTML += `<button class="btn btn-sm btn-outline sub-cat-btn" data-sub="all">全部子版块</button>`;
+        document.getElementById('start-memorize-area').innerHTML = '';
+        subArea.querySelectorAll('.sub-cat-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const sub = this.dataset.sub;
+                subArea.querySelectorAll('.sub-cat-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('start-memorize-area').innerHTML = `<button id="start-memorize-btn" class="btn btn-primary">开始背诵</button>`;
+                document.getElementById('start-memorize-btn').addEventListener('click', () => {
+                    startMemorizeWithFilter(subject, main, sub);
+                });
+            });
+        });
+    }
+
+    function startMemorizeWithFilter(subject, main, sub) {
+        let list = knowledgeItems.filter(k => k.subject === subject);
+        if (main !== 'all') list = list.filter(k => (k.mainCategory || '未分类') === main);
+        if (sub && sub !== 'all') list = list.filter(k => k.subCategory === sub);
+        if (list.length === 0) { alert('没有符合条件的知识点'); return; }
+        if (memorizeMode === 'random') list = shuffleArray(list);
+        currentKnowIdx = 0;
+        window.currentMemorizeList = list;
+        renderSingleKnowledgeFromList(list);
+    }
+
+    function renderSingleKnowledgeFromList(list) {
+        const area = document.getElementById('knowledge-memorize-area');
         if (currentKnowIdx >= list.length) {
             area.innerHTML = `<div style="text-align:center;padding:2rem;"><h3>🎉 已完成背诵！</h3><button id="back-know" class="btn btn-primary">返回</button></div>`;
             document.getElementById('back-know').addEventListener('click', () => { renderKnowledgeCircles(); });
@@ -620,17 +782,16 @@
             </div>
         </div>`;
         area.innerHTML = html;
-
         area.querySelectorAll('.img-mask-overlay').forEach(m => m.addEventListener('click', function(){this.style.display='none';}));
         area.querySelectorAll('.blank-mask').forEach(span => {
             span.addEventListener('click', function() {
                 this.outerHTML = `<span class="blank-reveal">${this.dataset.answer}</span>`;
             });
         });
-
-        if (currentKnowIdx>0) document.getElementById('prev-know').addEventListener('click',()=>{currentKnowIdx--;renderSingleKnowledge();});
-        document.getElementById('next-know').addEventListener('click',()=>{currentKnowIdx++;renderSingleKnowledge();});
+        if (currentKnowIdx>0) document.getElementById('prev-know').addEventListener('click',()=>{currentKnowIdx--;renderSingleKnowledgeFromList(list);});
+        document.getElementById('next-know').addEventListener('click',()=>{currentKnowIdx++;renderSingleKnowledgeFromList(list);});
     }
+
     function renderKnowText(item) {
         return item.text.replace(/\{\{(.+?)\}\}/g, (_, a) => `<span class="blank-mask" data-answer="${escapeHtml(a)}">🔒 点击</span>`);
     }
@@ -638,20 +799,16 @@
         return `<div class="img-mask-container" style="max-width:100%;"><img src="${item.image}" style="width:100%; height:auto;">${(item.imageMasks||[]).map(m => `<div class="img-mask-overlay" style="left:${m.x}%;top:${m.y}%;width:${m.w}%;height:${m.h}%;">🔒 点击</div>`).join('')}</div>`;
     }
 
-    // 知识点管理（带学科筛选）
+    // ==================== 知识点管理 ====================
     let knowManageList = [], knowManageIdx = 0;
     document.getElementById('manage-knowledge-btn').addEventListener('click', () => {
         document.getElementById('knowledge-circles').classList.add('hidden');
         document.getElementById('knowledge-memorize-area').classList.add('hidden');
         const manageArea = document.getElementById('knowledge-manage-area');
         manageArea.classList.remove('hidden');
-        // 渲染筛选栏和第一条知识点
         manageArea.innerHTML = `
             <div style="display:flex; gap:1rem; margin-bottom:1rem;">
-                <select id="know-manage-subject-filter">
-                    <option value="生物">生物</option>
-                    <option value="地理">地理</option>
-                </select>
+                <select id="know-manage-subject-filter"><option value="生物">生物</option><option value="地理">地理</option></select>
                 <button id="back-to-know-circles" class="btn btn-outline btn-sm">↩ 返回背诵</button>
             </div>
             <div id="know-manage-content"></div>
@@ -663,7 +820,6 @@
             knowManageIdx = 0;
             renderKnowManageQuestion();
         });
-        // 初始筛选
         knowManageList = knowledgeItems.filter(k => k.subject === filterSelect.value);
         knowManageIdx = 0;
         renderKnowManageQuestion();
@@ -679,6 +835,8 @@
         let html = `<div class="question-card">
             <h4>知识点 ${knowManageIdx+1}/${knowManageList.length}</h4>
             <p><strong>学科：</strong><span class="badge ${k.subject==='生物'?'badge-bio':'badge-geo'}">${k.subject}</span></p>
+            <p><strong>主版块：</strong>${escapeHtml(k.mainCategory || '未分类')}</p>
+            <p><strong>子版块：</strong>${escapeHtml(k.subCategory || '无')}</p>
             <p><strong>内容：</strong>${escapeHtml(k.text)}</p>`;
         if (k.image) html += `<img src="${k.image}" style="max-width:100%; height:auto; border-radius:8px;">`;
         html += `<div style="margin-top:0.5rem;">
@@ -690,14 +848,13 @@
             <button id="next-know-manage" class="btn btn-primary btn-sm">下一题 ➡</button>
         </div></div>`;
         content.innerHTML = html;
-
         if (knowManageIdx > 0) {
             document.getElementById('prev-know-manage').addEventListener('click', () => { knowManageIdx--; renderKnowManageQuestion(); });
         }
         document.getElementById('next-know-manage').addEventListener('click', () => { knowManageIdx++; renderKnowManageQuestion(); });
         document.querySelector('.edit-know-btn').addEventListener('click', () => editKnowledge(k.id));
         document.querySelector('.del-know-btn').addEventListener('click', () => {
-            if (confirm('确定删除这个知识点？')) {
+            if (confirm('确定删除？')) {
                 knowledgeItems = knowledgeItems.filter(item => item.id !== k.id);
                 saveKnowledge();
                 const currentSubject = document.getElementById('know-manage-subject-filter').value;
@@ -722,10 +879,12 @@
             <div class="card" style="max-width:650px;width:90%; max-height:90vh; overflow-y:auto;">
                 <h3>${isEdit?'编辑':'新增'}知识点</h3>
                 <div class="form-group"><label>学科</label><select id="k-subject"><option value="生物" ${k?.subject==='生物'?'selected':''}>生物</option><option value="地理" ${k?.subject==='地理'?'selected':''}>地理</option></select></div>
+                <div class="form-group"><label>主版块</label><input id="k-main" value="${escapeHtml(k?.mainCategory||'')}" placeholder="例如：细胞"></div>
+                <div class="form-group"><label>子版块</label><input id="k-sub" value="${escapeHtml(k?.subCategory||'')}" placeholder="例如：线粒体"></div>
                 <div class="form-group"><label>内容（用 {{关键词}} 标记填空）</label><textarea id="k-text" rows="3">${escapeHtml(k?.text||'')}</textarea></div>
                 <div class="form-group"><label>图片（可选）</label><input type="file" id="k-image" accept="image/*"></div>
                 <div id="k-image-area" style="margin:1rem 0; ${k?.image?'':'display:none;'}">
-                    <p style="font-weight:600;">🖱️ 在图片上拖动鼠标框选遮罩区域</p>
+                    <p>🖱️ 在图片上拖动鼠标框选遮罩区域</p>
                     <div id="k-mask-drawing" class="mask-drawing-area"></div>
                     <button id="k-clear-masks" class="btn btn-sm btn-outline" style="margin-top:0.5rem;">清除所有遮罩</button>
                 </div>
@@ -787,7 +946,6 @@
             drawingArea.appendChild(drawingRectDiv);
             e.preventDefault();
         });
-
         window.addEventListener('mousemove', (e) => {
             if (!isDrawing || !drawingRectDiv) return;
             const rect = drawingArea.getBoundingClientRect();
@@ -802,7 +960,6 @@
             drawingRectDiv.style.width = width + '%';
             drawingRectDiv.style.height = height + '%';
         });
-
         window.addEventListener('mouseup', () => {
             if (!isDrawing || !drawingRectDiv) return;
             const left = parseFloat(drawingRectDiv.style.left);
@@ -829,16 +986,17 @@
         document.getElementById('close-k-modal').addEventListener('click', () => document.body.removeChild(modal));
         document.getElementById('save-k-btn').addEventListener('click', () => {
             const subject = document.getElementById('k-subject').value;
+            const mainCat = document.getElementById('k-main').value.trim();
+            const subCat = document.getElementById('k-sub').value.trim();
             const text = document.getElementById('k-text').value.trim();
             if (!text) return alert('请输入内容');
-            const newK = { id: k?.id || Date.now().toString(), subject, text, image: imageData, imageMasks: masks };
+            const newK = { id: k?.id || Date.now().toString(), subject, text, image: imageData, imageMasks: masks, mainCategory: mainCat, subCategory: subCat };
             if (k) {
                 const idx = knowledgeItems.findIndex(item => item.id === k.id);
                 if (idx !== -1) knowledgeItems[idx] = newK;
             } else knowledgeItems.push(newK);
             saveKnowledge();
             document.body.removeChild(modal);
-            // 刷新管理界面
             if (!document.getElementById('knowledge-manage-area').classList.contains('hidden')) {
                 const currentSubject = document.getElementById('know-manage-subject-filter').value;
                 knowManageList = knowledgeItems.filter(item => item.subject === currentSubject);
@@ -852,7 +1010,7 @@
 
     document.getElementById('add-knowledge-btn').addEventListener('click', () => openKnowledgeModal());
 
-    // 题库管理
+    // ==================== 题库管理 ====================
     let libraryBrowseList = [], libraryBrowseIdx = 0;
     function renderLibraryBrowser() {
         const subj = document.getElementById('lib-subject-filter').value;
@@ -874,6 +1032,8 @@
             <h4>📌 第 ${libraryBrowseIdx+1}/${libraryBrowseList.length} 题</h4>
             <p><strong>学科：</strong><span class="badge ${q.subject==='生物'?'badge-bio':'badge-geo'}">${q.subject}</span></p>
             <p><strong>题型：</strong>${q.type==='choice'?'选择题':'填空题'}</p>
+            <p><strong>主版块：</strong>${escapeHtml(q.mainCategory || '未分类')}</p>
+            <p><strong>子版块：</strong>${escapeHtml(q.subCategory || '无')}</p>
             <p><strong>题目：</strong>${escapeHtml(q.text)}</p>`;
         if (q.image) html += `<img src="${q.image}" style="max-width:100%; height:auto; border-radius:8px;">`;
         if (q.type === 'choice') {
@@ -894,7 +1054,6 @@
             <button id="next-lib-btn" class="btn btn-primary btn-sm">下一题 ➡</button>
         </div></div>`;
         document.getElementById('library-browse-area').innerHTML = html;
-
         if (libraryBrowseIdx > 0) {
             document.getElementById('prev-lib-btn').addEventListener('click', () => { libraryBrowseIdx--; renderLibraryQuestion(); });
         }
@@ -930,6 +1089,8 @@
                 <h3>${isEdit?'编辑':'新增'}题目</h3>
                 <div class="form-group"><label>学科</label><select id="q-subject"><option value="生物" ${q?.subject==='生物'?'selected':''}>生物</option><option value="地理" ${q?.subject==='地理'?'selected':''}>地理</option></select></div>
                 <div class="form-group"><label>类型</label><select id="q-type"><option value="choice" ${q?.type==='choice'?'selected':''}>选择题</option><option value="fill" ${q?.type==='fill'?'selected':''}>填空题</option></select></div>
+                <div class="form-group"><label>主版块（可选）</label><input id="q-main" value="${escapeHtml(q?.mainCategory||'')}" placeholder="例如：细胞"></div>
+                <div class="form-group"><label>子版块（可选）</label><input id="q-sub" value="${escapeHtml(q?.subCategory||'')}" placeholder="例如：线粒体"></div>
                 <div class="form-group"><label>题目内容（填空用 {{答案}} 标记）</label><textarea id="q-text" rows="3">${escapeHtml(q?.text||'')}</textarea></div>
                 <div class="form-group"><label>图片（可选）</label><input type="file" id="q-image" accept="image/*"><div id="q-img-preview">${q?.image ? `<img src="${q.image}" style="max-width:200px;">` : ''}</div></div>
                 <div id="choice-area" class="${q?.type==='fill'?'hidden':''}">
@@ -972,9 +1133,11 @@
         document.getElementById('save-q-btn').addEventListener('click', () => {
             const subject = document.getElementById('q-subject').value;
             const type = document.getElementById('q-type').value;
+            const mainCat = document.getElementById('q-main').value.trim();
+            const subCat = document.getElementById('q-sub').value.trim();
             const text = document.getElementById('q-text').value.trim();
             if (!text) return alert('请输入题目');
-            const newQ = { id: q?.id || Date.now().toString(), subject, type, text, image: imageData, errorCount: q?.errorCount || 0 };
+            const newQ = { id: q?.id || Date.now().toString(), subject, type, text, image: imageData, errorCount: q?.errorCount || 0, mainCategory: mainCat, subCategory: subCat };
             if (type === 'choice') {
                 const opts = [...document.querySelectorAll('.opt-input')].map(i => i.value.trim()).filter(v => v);
                 if (opts.length < 2) return alert('至少两个选项');
@@ -1007,7 +1170,7 @@
         if (confirm('重置所有刷题进度？错题次数不变。')) { progress = {}; saveProgress(); alert('已重置'); renderHome(); }
     });
 
-    // 统计图表
+    // ==================== 统计图表 ====================
     function renderStatsChart() {
         const canvas = document.getElementById('errorChart'), ctx = canvas.getContext('2d');
         const days = []; for (let i=6; i>=0; i--) { const d = new Date(); d.setDate(d.getDate()-i); days.push(d.toISOString().split('T')[0]); }
@@ -1039,6 +1202,7 @@
         } catch (e) { area.innerHTML = `<div class="ai-box">❌ 分析失败：${escapeHtml(e.message)}</div>`; }
     });
 
+    // ==================== 设置 ====================
     document.getElementById('save-api-key').addEventListener('click', () => { apiKey = document.getElementById('api-key-input').value.trim(); localStorage.setItem(API_KEY_STORE, apiKey); alert('已保存'); });
     document.getElementById('import-btn').addEventListener('click', () => { try { const d = JSON.parse(document.getElementById('import-json').value); questions.push(...d.map(q => ({...q, errorCount: q.errorCount||0}))); saveQuestions(); renderHome(); alert('导入成功'); } catch(e) { alert('JSON格式错误'); } });
     document.getElementById('export-btn').addEventListener('click', () => { const blob = new Blob([JSON.stringify(questions)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='questions.json'; a.click(); });
@@ -1046,6 +1210,7 @@
     function shuffleArray(arr) { const a = [...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
     function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
+    // 初始化
     loadAll();
     switchPanel('home');
     updateCountdown();
