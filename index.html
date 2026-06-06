@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📗 会考刷题系统 · 显示正确答案</title>
+    <title>📗 会考刷题系统 · 最终版</title>
     <style>
         :root {
             --primary: #2ecc71; --danger: #e74c3c; --bg: #f4f6ff;
@@ -64,6 +64,22 @@
         .practice-column.bio-col { border: 2px solid #d4edda; }
         .practice-column.geo-col { border: 2px solid #d1ecf1; }
         .type-row { display: flex; gap: 1.5rem; justify-content: center; align-items: center; flex-wrap: wrap; }
+
+        /* 响应式设计 */
+        @media (max-width: 600px) {
+            .header h1 { font-size: 1.8rem; }
+            .countdown { font-size: 1rem; }
+            .nav button { font-size: 0.75rem; padding: 0.5rem 0.1rem; }
+            .subject-circle { width: 110px; height: 110px; }
+            .subject-icon { font-size: 1.8rem; }
+            .subject-count { font-size: 1.3rem; }
+            .subject-label { font-size: 0.8rem; }
+            .card { padding: 1rem; }
+            .btn { padding: 0.5rem 1rem; font-size: 0.85rem; }
+            .question-card { padding: 1rem; }
+            .practice-columns { flex-direction: column; }
+            .practice-column { min-width: auto; }
+        }
     </style>
 </head>
 <body>
@@ -85,17 +101,18 @@
         <div style="display:flex; gap:2rem; justify-content:center; flex-wrap:wrap; margin-bottom:1rem;">
             <div class="subject-circle bio" id="subject-bio">
                 <div class="subject-icon">🧬</div>
-                <div class="subject-count" id="count-bio">0</div>
+                <div class="subject-count" id="count-bio">0/0</div>
                 <div class="subject-label">生物</div>
             </div>
             <div class="subject-circle geo" id="subject-geo">
                 <div class="subject-icon">🌍</div>
-                <div class="subject-count" id="count-geo">0</div>
+                <div class="subject-count" id="count-geo">0/0</div>
                 <div class="subject-label">地理</div>
             </div>
         </div>
         <div style="text-align:center;">
             <button id="add-question-btn" class="btn btn-primary">＋ 添加题目</button>
+            <button id="open-library-btn-home" class="btn btn-outline" style="margin-left:0.5rem;">📋 管理题库</button>
             <button id="reset-all-progress-btn" class="btn btn-danger btn-sm" style="margin-left:1rem;">🔄 重置所有进度</button>
         </div>
     </div>
@@ -135,6 +152,15 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- 题库管理（逐题浏览） -->
+    <div id="panel-library" class="card hidden">
+        <div style="display:flex; gap:1rem; margin-bottom:1rem; align-items:center;">
+            <select id="lib-subject-filter"><option value="all">全部学科</option><option value="生物">生物</option><option value="地理">地理</option></select>
+            <button id="add-question-btn2" class="btn btn-primary btn-sm">＋ 添加</button>
+        </div>
+        <div id="library-browse-area"></div>
     </div>
 
     <!-- 刷题进行中 -->
@@ -200,20 +226,20 @@
         <div class="form-group"><label>DeepSeek API Key</label><input type="password" id="api-key-input" placeholder="sk-..."></div>
         <button id="save-api-key" class="btn btn-primary">💾 保存</button>
         <hr style="margin:1rem 0;">
-        <div class="form-group"><label>导入题目（JSON）</label><textarea id="import-json" rows="5" placeholder='[{"subject":"生物","type":"choice","text":"...","options":["A","B","C","D"],"correctIndex":0}]'></textarea>
+        <div class="form-group"><label>导入题目（JSON格式）</label><textarea id="import-json" rows="5" placeholder='[{"subject":"生物","type":"choice","text":"...","options":["A","B","C","D"],"correctIndex":0}]'></textarea>
             <button id="import-btn" class="btn btn-outline btn-sm">📥 导入</button>
-            <button id="export-btn" class="btn btn-outline btn-sm">📤 导出</button>
+            <button id="export-btn" class="btn btn-outline btn-sm">📤 导出题库</button>
         </div>
     </div>
 </div>
 
 <script>
 (function() {
-    const STORAGE_QUESTIONS = 'exam_questions_v17';
-    const STORAGE_PROGRESS = 'exam_progress_v17';
-    const STORAGE_DAILY_ERRORS = 'exam_daily_errors_v17';
-    const STORAGE_KNOWLEDGE = 'exam_knowledge_v17';
-    const API_KEY_STORE = 'deepseek_key_v17';
+    const STORAGE_QUESTIONS = 'exam_questions_final';
+    const STORAGE_PROGRESS = 'exam_progress_final';
+    const STORAGE_DAILY_ERRORS = 'exam_daily_errors_final';
+    const STORAGE_KNOWLEDGE = 'exam_knowledge_final';
+    const API_KEY_STORE = 'deepseek_key_final';
 
     let questions = [];
     let progress = {};
@@ -265,6 +291,7 @@
         knowledge: document.getElementById('panel-knowledge'),
         stats: document.getElementById('panel-stats'),
         settings: document.getElementById('panel-settings'),
+        library: document.getElementById('panel-library'),
     };
 
     function switchPanel(name) {
@@ -272,15 +299,15 @@
         document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
         panels[name].classList.remove('hidden');
         let navBtnId = `nav-${name}`;
-        if (name === 'practiceSelect' || name === 'practice') {
-            navBtnId = 'nav-practice-btn';
-        }
-        document.getElementById(navBtnId).classList.add('active');
+        if (name === 'practiceSelect') navBtnId = 'nav-practice-btn';
+        if (name === 'library') navBtnId = 'nav-settings';
+        if (document.getElementById(navBtnId)) document.getElementById(navBtnId).classList.add('active');
         if (name === 'home') renderHome();
         if (name === 'practiceSelect') renderPracticeSelect();
         if (name === 'wrong') renderWrongCircles();
         if (name === 'knowledge') renderKnowledgeCircles();
         if (name === 'stats') renderStatsChart();
+        if (name === 'library') renderLibraryBrowser();
     }
 
     document.getElementById('nav-home').addEventListener('click', () => switchPanel('home'));
@@ -289,10 +316,25 @@
     document.getElementById('nav-knowledge').addEventListener('click', () => switchPanel('knowledge'));
     document.getElementById('nav-stats').addEventListener('click', () => switchPanel('stats'));
     document.getElementById('nav-settings').addEventListener('click', () => switchPanel('settings'));
+    document.getElementById('open-library-btn-home').addEventListener('click', () => switchPanel('library'));
 
     function renderHome() {
-        document.getElementById('count-bio').textContent = questions.filter(q => q.subject === '生物').length;
-        document.getElementById('count-geo').textContent = questions.filter(q => q.subject === '地理').length;
+        function getSubjectProgressCount(subject) {
+            let completedSet = new Set();
+            Object.values(progress).forEach(p => {
+                if (p.completed) p.completed.forEach(id => {
+                    const q = questions.find(q => q.id === id);
+                    if (q && q.subject === subject) completedSet.add(id);
+                });
+            });
+            return completedSet.size;
+        }
+        const bioTotal = questions.filter(q => q.subject === '生物').length;
+        const geoTotal = questions.filter(q => q.subject === '地理').length;
+        const bioCompleted = getSubjectProgressCount('生物');
+        const geoCompleted = getSubjectProgressCount('地理');
+        document.getElementById('count-bio').textContent = `${bioCompleted}/${bioTotal}`;
+        document.getElementById('count-geo').textContent = `${geoCompleted}/${geoTotal}`;
     }
     document.getElementById('subject-bio').addEventListener('click', () => switchPanel('practiceSelect'));
     document.getElementById('subject-geo').addEventListener('click', () => switchPanel('practiceSelect'));
@@ -316,7 +358,7 @@
     document.getElementById('practice-geo-fill').addEventListener('click', () => startTypePractice('地理', 'fill'));
 
     let groupQuestions = [], currentIndex = 0, currentSubject = '', currentType = '', groupErrorIds = new Set();
-    let currentSource = 'practice'; // 'practice' 或 'wrong'
+    let currentSource = 'practice';
 
     function startTypePractice(subject, type) {
         const stats = getTypeStats(subject, type);
@@ -369,7 +411,6 @@
             q.options.forEach((opt,i) => html += `<label style="display:block;margin:0.3rem;"><input type="radio" name="choice" value="${i}"> ${String.fromCharCode(65+i)}. ${escapeHtml(opt)}</label>`);
             html += '</div><button class="btn btn-primary submit-btn">提交</button>';
         } else {
-            // 填空题：遮盖模式，点击显示答案
             html += '<div style="margin:0.8rem 0;">';
             const parts = q.text.split(/\{\{.+?\}\}/);
             q.blanks.forEach((ans, i) => {
@@ -389,15 +430,12 @@
                 checkAnswer(q, parseInt(sel.value));
             });
         } else {
-            // 填空题绑定遮盖点击事件
-            const blanksAnswers = q.blanks;
             document.querySelectorAll('.blank-mask').forEach(span => {
                 span.addEventListener('click', function() {
                     const idx = parseInt(this.dataset.idx);
-                    this.outerHTML = `<span class="blank-reveal">${escapeHtml(blanksAnswers[idx])}</span>`;
+                    this.outerHTML = `<span class="blank-reveal">${escapeHtml(q.blanks[idx])}</span>`;
                 });
             });
-            // 绑定自评按钮
             document.querySelector('.correct-btn').addEventListener('click', () => selfEvaluate(q, true));
             document.querySelector('.wrong-btn').addEventListener('click', () => selfEvaluate(q, false));
         }
@@ -455,8 +493,7 @@
         document.querySelectorAll('.submit-btn, .correct-btn, .wrong-btn').forEach(b => b.disabled = true);
         const nextBtn = document.createElement('button');
         nextBtn.className = 'btn btn-primary btn-sm'; nextBtn.style.marginLeft = '1rem';
-        nextBtn.textContent = '➡️ 下一题';
-        nextBtn.addEventListener('click', () => { currentIndex++; renderQuestion(); });
+        nextBtn.textContent = '➡️ 下一题'; nextBtn.addEventListener('click', () => { currentIndex++; renderQuestion(); });
         fb.appendChild(nextBtn);
     }
 
@@ -464,7 +501,8 @@
         if (!apiKey) { alert('请先在设置中填写DeepSeek API Key'); return; }
         const correctAns = q.type === 'choice' ? q.options[q.correctIndex] : q.blanks.join('、');
         const userAnsText = userAns !== null ? (q.type === 'choice' ? q.options[userAns] : userAns.join('、')) : '未填写';
-        const prompt = `你是初中${currentSubject}老师。请先指出这道题考查的知识点，再详细解析题目和正确答案。\n题目：${q.text}\n我的答案：${userAnsText}\n正确答案：${correctAns}`;
+        const hasImage = q.image ? '（题目包含图片，请结合常见考点进行分析）' : '';
+        const prompt = `你是初中${currentSubject}老师。请用最通俗易懂的语言，像给基础薄弱的同学讲解一样，先告诉我这道题考的是哪个知识点，再用简单的话解释为什么选这个答案，最后如果可能，给一个巧记方法。${hasImage}\n题目：${q.text}\n我的答案：${userAnsText}\n正确答案：${correctAns}。请务必只根据上述答案分析，不要添加未提供的知识。`;
         const fb = document.getElementById('feedback');
         fb.innerHTML += '<div class="ai-box" id="single-ai-box">⏳ AI解析中...</div>';
         try {
@@ -511,7 +549,7 @@
     async function requestPracticeAIAnalysis() {
         if (!apiKey) { alert('请先设置API Key'); return; }
         const errorQs = questions.filter(q => groupErrorIds.has(q.id));
-        const prompt = `你是初中${currentSubject}老师。请根据以下错题分析薄弱知识点。\n${errorQs.map(q => `题目：${q.text}`).join('\n')}`;
+        const prompt = `你是初中${currentSubject}老师。请用通俗易懂的语言，根据以下错题分析我薄弱的知识点，并给出学习建议。\n${errorQs.map(q => `题目：${q.text}`).join('\n')}`;
         const area = document.getElementById('group-result');
         area.innerHTML += '<div class="ai-box">⏳ AI分析中...</div>';
         try {
@@ -590,192 +628,162 @@
         return `<div class="img-mask-container" style="max-width:100%;"><img src="${item.image}" style="width:100%; height:auto;">${(item.imageMasks||[]).map(m => `<div class="img-mask-overlay" style="left:${m.x}%;top:${m.y}%;width:${m.w}%;height:${m.h}%;">🔒 点击</div>`).join('')}</div>`;
     }
 
-    // 添加知识点弹窗
-    document.getElementById('add-knowledge-btn').addEventListener('click', () => openKnowledgeModal());
-    function openKnowledgeModal(k = null) {
+    // 题库管理逐题浏览
+    let libraryBrowseList = [], libraryBrowseIdx = 0;
+    function renderLibraryBrowser() {
+        const subj = document.getElementById('lib-subject-filter').value;
+        libraryBrowseList = subj === 'all' ? [...questions] : questions.filter(q => q.subject === subj);
+        libraryBrowseIdx = 0;
+        if (libraryBrowseList.length === 0) {
+            document.getElementById('library-browse-area').innerHTML = '<p style="text-align:center;">暂无题目，请添加</p>';
+        } else {
+            renderLibraryQuestion();
+        }
+    }
+
+    function renderLibraryQuestion() {
+        if (libraryBrowseIdx >= libraryBrowseList.length) {
+            document.getElementById('library-browse-area').innerHTML = '<p style="text-align:center;">已浏览全部题目</p>';
+            return;
+        }
+        const q = libraryBrowseList[libraryBrowseIdx];
+        let html = `<div class="question-card">
+            <h4>📌 第 ${libraryBrowseIdx+1}/${libraryBrowseList.length} 题</h4>
+            <p><strong>学科：</strong><span class="badge ${q.subject==='生物'?'badge-bio':'badge-geo'}">${q.subject}</span></p>
+            <p><strong>题型：</strong>${q.type==='choice'?'选择题':'填空题'}</p>
+            <p><strong>题目：</strong>${escapeHtml(q.text)}</p>`;
+        if (q.image) html += `<img src="${q.image}" style="max-width:100%; height:auto; border-radius:8px;">`;
+        if (q.type === 'choice') {
+            html += '<p><strong>选项：</strong></p><ul>';
+            q.options.forEach((opt, i) => html += `<li>${String.fromCharCode(65+i)}. ${escapeHtml(opt)}</li>`);
+            html += '</ul>';
+            html += `<p><strong>✅ 正确答案：</strong>${String.fromCharCode(65+q.correctIndex)}. ${escapeHtml(q.options[q.correctIndex])}</p>`;
+        } else {
+            html += `<p><strong>✅ 正确答案：</strong>${q.blanks.map(a => escapeHtml(a)).join('、')}</p>`;
+        }
+        html += `<p><strong>错误次数：</strong>${q.errorCount||0}</p>`;
+        html += `<div style="margin-top:0.5rem;">
+            <button class="btn btn-sm btn-outline edit-q-btn" data-id="${q.id}">✏️ 编辑</button>
+            <button class="btn btn-sm btn-danger del-q-btn" data-id="${q.id}">🗑️ 删除</button>
+        </div>`;
+        html += `<div style="margin-top:1rem; display:flex; gap:0.5rem;">
+            ${libraryBrowseIdx > 0 ? '<button id="prev-lib-btn" class="btn btn-outline btn-sm">⬅ 上一题</button>' : ''}
+            <button id="next-lib-btn" class="btn btn-primary btn-sm">下一题 ➡</button>
+        </div></div>`;
+        document.getElementById('library-browse-area').innerHTML = html;
+
+        if (libraryBrowseIdx > 0) {
+            document.getElementById('prev-lib-btn').addEventListener('click', () => { libraryBrowseIdx--; renderLibraryQuestion(); });
+        }
+        document.getElementById('next-lib-btn').addEventListener('click', () => { libraryBrowseIdx++; renderLibraryQuestion(); });
+        document.querySelector('.edit-q-btn').addEventListener('click', () => editQuestion(q.id));
+        document.querySelector('.del-q-btn').addEventListener('click', () => {
+            if (confirm('确定删除这道题？')) {
+                questions = questions.filter(q2 => q2.id !== q.id);
+                saveQuestions();
+                libraryBrowseList = libraryBrowseList.filter(q2 => q2.id !== q.id);
+                if (libraryBrowseIdx >= libraryBrowseList.length) libraryBrowseIdx = Math.max(0, libraryBrowseList.length - 1);
+                if (libraryBrowseList.length === 0) {
+                    document.getElementById('library-browse-area').innerHTML = '<p style="text-align:center;">暂无题目</p>';
+                } else {
+                    renderLibraryQuestion();
+                }
+                renderHome();
+            }
+        });
+    }
+
+    function editQuestion(id) {
+        const q = questions.find(q => q.id === id);
+        if (q) openQuestionModal(q);
+    }
+
+    function openQuestionModal(q = null) {
+        const isEdit = !!q;
         const modal = document.createElement('div');
         modal.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100;';
         modal.innerHTML = `
-            <div class="card" style="max-width:650px;width:90%; max-height:90vh; overflow-y:auto;">
-                <h3>${k?'编辑':'新增'}知识点</h3>
-                <div class="form-group"><label>学科</label><select id="k-subject"><option value="生物" ${k?.subject==='生物'?'selected':''}>生物</option><option value="地理" ${k?.subject==='地理'?'selected':''}>地理</option></select></div>
-                <div class="form-group"><label>内容（用 {{关键词}} 标记填空）</label><textarea id="k-text" rows="3">${escapeHtml(k?.text||'')}</textarea></div>
-                <div class="form-group"><label>图片（可选）</label><input type="file" id="k-image" accept="image/*"></div>
-                <div id="k-image-area" style="margin:1rem 0; ${k?.image?'':'display:none;'}">
-                    <p>🖱️ 在图片上拖动鼠标框选遮罩区域</p>
-                    <div id="k-mask-drawing" class="mask-drawing-area"></div>
-                    <button id="k-clear-masks" class="btn btn-sm btn-outline" style="margin-top:0.5rem;">清除所有遮罩</button>
+            <div class="card" style="max-width:550px;width:90%;">
+                <h3>${isEdit?'编辑':'新增'}题目</h3>
+                <div class="form-group"><label>学科</label><select id="q-subject"><option value="生物" ${q?.subject==='生物'?'selected':''}>生物</option><option value="地理" ${q?.subject==='地理'?'selected':''}>地理</option></select></div>
+                <div class="form-group"><label>类型</label><select id="q-type"><option value="choice" ${q?.type==='choice'?'selected':''}>选择题</option><option value="fill" ${q?.type==='fill'?'selected':''}>填空题</option></select></div>
+                <div class="form-group"><label>题目内容（填空用 {{答案}} 标记）</label><textarea id="q-text" rows="3">${escapeHtml(q?.text||'')}</textarea></div>
+                <div class="form-group"><label>图片（可选）</label><input type="file" id="q-image" accept="image/*"><div id="q-img-preview">${q?.image ? `<img src="${q.image}" style="max-width:200px;">` : ''}</div></div>
+                <div id="choice-area" class="${q?.type==='fill'?'hidden':''}">
+                    <label>选项（点击☆标正确答案）</label>
+                    <div id="options-container">${(q?.options||['','','','']).map((opt,i) => `
+                        <div style="display:flex; gap:0.5rem; margin:0.3rem 0;">
+                            <input value="${escapeHtml(opt)}" placeholder="选项 ${String.fromCharCode(65+i)}" class="opt-input" data-index="${i}">
+                            <span class="correct-star" data-idx="${i}" style="cursor:pointer; font-size:1.5rem;">${q?.correctIndex===i?'★':'☆'}</span>
+                        </div>`).join('')}</div>
                 </div>
-                <button id="save-k-btn" class="btn btn-primary">保存</button>
-                <button id="close-k-modal" class="btn btn-outline">取消</button>
+                <button id="save-q-btn" class="btn btn-primary">保存</button>
+                <button id="close-modal-btn" class="btn btn-outline">取消</button>
             </div>`;
         document.body.appendChild(modal);
 
-        let imageData = k?.image || null;
-        let masks = k?.imageMasks ? [...k.imageMasks] : [];
-        const drawingArea = document.getElementById('k-mask-drawing');
-        const imageArea = document.getElementById('k-image-area');
+        let correctIdx = q?.correctIndex || 0;
+        let imageData = q?.image || null;
 
-        function renderImageAndMasks() {
-            if (!imageData) { drawingArea.innerHTML = ''; return; }
-            drawingArea.innerHTML = '';
-            const img = document.createElement('img');
-            img.src = imageData;
-            img.onload = () => {
-                drawingArea.appendChild(img);
-                masks.forEach(m => drawMaskOnImage(m));
-            };
-        }
-
-        function drawMaskOnImage(mask) {
-            const img = drawingArea.querySelector('img');
-            if (!img) return;
-            const rectDiv = document.createElement('div');
-            rectDiv.className = 'mask-item';
-            rectDiv.style.left = mask.x + '%';
-            rectDiv.style.top = mask.y + '%';
-            rectDiv.style.width = mask.w + '%';
-            rectDiv.style.height = mask.h + '%';
-            const delBtn = document.createElement('span');
-            delBtn.className = 'delete-mask';
-            delBtn.textContent = '✕';
-            delBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                masks = masks.filter(m => !(m.x === mask.x && m.y === mask.y && m.w === mask.w && m.h === mask.h));
-                drawingArea.removeChild(rectDiv);
+        document.getElementById('q-type').addEventListener('change', e => {
+            document.getElementById('choice-area').classList.toggle('hidden', e.target.value === 'fill');
+        });
+        document.querySelectorAll('.correct-star').forEach(star => {
+            star.addEventListener('click', () => {
+                correctIdx = parseInt(star.dataset.idx);
+                document.querySelectorAll('.correct-star').forEach(s => s.textContent = '☆');
+                star.textContent = '★';
             });
-            rectDiv.appendChild(delBtn);
-            drawingArea.appendChild(rectDiv);
-        }
-
-        let startX, startY, isDrawing = false, drawingRectDiv = null;
-        drawingArea.addEventListener('mousedown', (e) => {
-            if (e.target !== drawingArea && e.target !== drawingArea.querySelector('img')) return;
-            const rect = drawingArea.getBoundingClientRect();
-            startX = (e.clientX - rect.left) / rect.width * 100;
-            startY = (e.clientY - rect.top) / rect.height * 100;
-            isDrawing = true;
-            drawingRectDiv = document.createElement('div');
-            drawingRectDiv.className = 'drawing-rect';
-            drawingRectDiv.style.left = startX + '%';
-            drawingRectDiv.style.top = startY + '%';
-            drawingRectDiv.style.width = '0%';
-            drawingRectDiv.style.height = '0%';
-            drawingArea.appendChild(drawingRectDiv);
-            e.preventDefault();
         });
-
-        window.addEventListener('mousemove', (e) => {
-            if (!isDrawing || !drawingRectDiv) return;
-            const rect = drawingArea.getBoundingClientRect();
-            const currentX = (e.clientX - rect.left) / rect.width * 100;
-            const currentY = (e.clientY - rect.top) / rect.height * 100;
-            const left = Math.min(startX, currentX);
-            const top = Math.min(startY, currentY);
-            const width = Math.abs(currentX - startX);
-            const height = Math.abs(currentY - startY);
-            drawingRectDiv.style.left = left + '%';
-            drawingRectDiv.style.top = top + '%';
-            drawingRectDiv.style.width = width + '%';
-            drawingRectDiv.style.height = height + '%';
-        });
-
-        window.addEventListener('mouseup', () => {
-            if (!isDrawing || !drawingRectDiv) return;
-            const left = parseFloat(drawingRectDiv.style.left);
-            const top = parseFloat(drawingRectDiv.style.top);
-            const width = parseFloat(drawingRectDiv.style.width);
-            const height = parseFloat(drawingRectDiv.style.height);
-            if (width > 1 && height > 1) {
-                const newMask = { x: left, y: top, w: width, h: height };
-                masks.push(newMask);
-                drawMaskOnImage(newMask);
-            }
-            if (drawingRectDiv) { drawingArea.removeChild(drawingRectDiv); drawingRectDiv = null; }
-            isDrawing = false;
-        });
-
-        document.getElementById('k-clear-masks').addEventListener('click', () => { masks = []; renderImageAndMasks(); });
-        document.getElementById('k-image').addEventListener('change', (e) => {
+        document.getElementById('q-image').addEventListener('change', e => {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = (ev) => { imageData = ev.target.result; masks = []; imageArea.style.display = 'block'; renderImageAndMasks(); };
+            reader.onload = ev => {
+                imageData = ev.target.result;
+                document.getElementById('q-img-preview').innerHTML = `<img src="${imageData}" style="max-width:200px;">`;
+            };
             reader.readAsDataURL(file);
         });
-        document.getElementById('close-k-modal').addEventListener('click', () => document.body.removeChild(modal));
-        document.getElementById('save-k-btn').addEventListener('click', () => {
-            const subject = document.getElementById('k-subject').value;
-            const text = document.getElementById('k-text').value.trim();
-            if (!text) return alert('请输入内容');
-            const newK = { id: k?.id || Date.now().toString(), subject, text, image: imageData, imageMasks: masks };
-            if (k) {
-                const idx = knowledgeItems.findIndex(item => item.id === k.id);
-                if (idx !== -1) knowledgeItems[idx] = newK;
-            } else knowledgeItems.push(newK);
-            saveKnowledge();
+        document.getElementById('close-modal-btn').addEventListener('click', () => document.body.removeChild(modal));
+        document.getElementById('save-q-btn').addEventListener('click', () => {
+            const subject = document.getElementById('q-subject').value;
+            const type = document.getElementById('q-type').value;
+            const text = document.getElementById('q-text').value.trim();
+            if (!text) return alert('请输入题目');
+            const newQ = { id: q?.id || Date.now().toString(), subject, type, text, image: imageData, errorCount: q?.errorCount || 0 };
+            if (type === 'choice') {
+                const opts = [...document.querySelectorAll('.opt-input')].map(i => i.value.trim()).filter(v => v);
+                if (opts.length < 2) return alert('至少两个选项');
+                newQ.options = opts;
+                newQ.correctIndex = correctIdx;
+            } else {
+                const blanks = [...text.matchAll(/\{\{(.+?)\}\}/g)].map(m => m[1].trim());
+                if (blanks.length === 0) return alert('请用 {{答案}} 标记填空');
+                newQ.blanks = blanks;
+            }
+            if (q) {
+                const idx = questions.findIndex(q2 => q2.id === q.id);
+                if (idx !== -1) questions[idx] = newQ;
+            } else {
+                questions.push(newQ);
+            }
+            saveQuestions();
             document.body.removeChild(modal);
-            renderKnowledgeCircles();
+            if (panels.library.classList.contains('hidden') === false) {
+                libraryBrowseList = questions.filter(q => q.subject === document.getElementById('lib-subject-filter').value || document.getElementById('lib-subject-filter').value === 'all');
+                if (libraryBrowseIdx >= libraryBrowseList.length) libraryBrowseIdx = Math.max(0, libraryBrowseList.length - 1);
+                renderLibraryQuestion();
+            }
+            renderHome();
         });
-        if (imageData) renderImageAndMasks();
     }
 
-    // 添加题目弹窗
-    document.getElementById('add-question-btn').addEventListener('click', () => {
-        const modal = document.createElement('div');
-        modal.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100;';
-        modal.innerHTML = `
-            <div class="card" style="max-width:500px;width:90%;">
-                <h3>添加题目</h3>
-                <div class="form-group"><label>学科</label><select id="add-subject"><option>生物</option><option>地理</option></select></div>
-                <div class="form-group"><label>类型</label><select id="add-type"><option value="choice">选择题</option><option value="fill">填空题</option></select></div>
-                <div class="form-group"><label>题目内容（填空用 {{答案}}）</label><textarea id="add-text" rows="3"></textarea></div>
-                <div class="form-group"><label>图片（可选）</label><input type="file" id="add-image" accept="image/*"><div id="add-img-preview"></div></div>
-                <div id="add-choice-area">
-                    <label>选项（点击☆标正确答案）</label>
-                    <div id="add-options">
-                        <div><input placeholder="A" class="add-opt"><span class="star" data-idx="0">☆</span></div>
-                        <div><input placeholder="B" class="add-opt"><span class="star" data-idx="1">☆</span></div>
-                        <div><input placeholder="C" class="add-opt"><span class="star" data-idx="2">☆</span></div>
-                        <div><input placeholder="D" class="add-opt"><span class="star" data-idx="3">☆</span></div>
-                    </div>
-                </div>
-                <button id="save-add" class="btn btn-primary">保存</button>
-                <button id="close-add" class="btn btn-outline">取消</button>
-            </div>`;
-        document.body.appendChild(modal);
-        let correctIdx = 0, imageData = null;
-        document.getElementById('add-image').addEventListener('change', e => {
-            const file = e.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            reader.onload = ev => { imageData = ev.target.result; document.getElementById('add-img-preview').innerHTML = `<img src="${imageData}" style="max-width:200px;">`; };
-            reader.readAsDataURL(file);
-        });
-        modal.querySelectorAll('.star').forEach(s => s.addEventListener('click', () => {
-            correctIdx = parseInt(s.dataset.idx);
-            modal.querySelectorAll('.star').forEach(s => s.textContent = '☆');
-            s.textContent = '★';
-        }));
-        document.getElementById('add-type').addEventListener('change', e => document.getElementById('add-choice-area').style.display = e.target.value === 'choice' ? 'block' : 'none');
-        document.getElementById('close-add').addEventListener('click', () => document.body.removeChild(modal));
-        document.getElementById('save-add').addEventListener('click', () => {
-            const subject = document.getElementById('add-subject').value, type = document.getElementById('add-type').value, text = document.getElementById('add-text').value.trim();
-            if (!text) return alert('请输入题目');
-            const q = { id: Date.now().toString(), subject, type, text, image: imageData, errorCount: 0 };
-            if (type === 'choice') {
-                const opts = [...modal.querySelectorAll('.add-opt')].map(i => i.value.trim()).filter(v => v); if (opts.length < 2) return alert('至少两个选项');
-                q.options = opts; q.correctIndex = correctIdx;
-            } else {
-                const blanks = [...text.matchAll(/\{\{(.+?)\}\}/g)].map(m => m[1].trim()); if (blanks.length === 0) return alert('请用 {{}} 标记填空');
-                q.blanks = blanks;
-            }
-            questions.push(q); saveQuestions();
-            document.body.removeChild(modal); renderHome(); alert('题目已添加');
-        });
-    });
+    document.getElementById('add-question-btn').addEventListener('click', () => openQuestionModal());
+    document.getElementById('add-question-btn2').addEventListener('click', () => openQuestionModal());
 
     document.getElementById('reset-all-progress-btn').addEventListener('click', () => {
-        if (confirm('确定重置所有刷题进度？错题次数不变。')) { progress = {}; saveProgress(); alert('已重置'); renderHome(); }
+        if (confirm('重置所有刷题进度？错题次数不变。')) { progress = {}; saveProgress(); alert('已重置'); renderHome(); }
     });
 
     // 统计图表
@@ -796,7 +804,7 @@
         if (!apiKey) { alert('请先设置API Key'); return; }
         const wrongQs = questions.filter(q => q.errorCount > 0);
         if (wrongQs.length === 0) { alert('暂无错题'); return; }
-        const prompt = `你是初中会考辅导老师。请根据以下所有错题，分析学生整体薄弱的知识点，并给出针对性学习建议。\n${wrongQs.map(q => `[${q.subject}] ${q.text}`).join('\n')}`;
+        const prompt = `你是初中会考辅导老师。请用通俗易懂的语言，根据以下所有错题，分析学生整体薄弱的知识点，并给出针对性学习建议。\n${wrongQs.map(q => `[${q.subject}] ${q.text}`).join('\n')}`;
         const area = document.getElementById('ai-stats-result');
         area.innerHTML = '<div class="ai-box">⏳ 正在分析薄弱点...</div>';
         try {
@@ -820,6 +828,7 @@
     loadAll();
     switchPanel('home');
     updateCountdown();
+    document.getElementById('lib-subject-filter').addEventListener('change', renderLibraryBrowser);
 })();
 </script>
 </body>
