@@ -197,7 +197,7 @@
                     <span class="font-bold text-sage-text-main flex items-center gap-1">
                         <span class="material-symbols-outlined !text-[18px]">account_tree</span>考点大纲知识树
                     </span>
-                    <button onclick="openAdminModal('grade', null)" class="bg-[#4F6F52] text-white text-xs px-2 py-1 rounded-md font-bold hover:opacity-90">+ 新学年</button>
+                    <button onclick="openAdminModal('grade', null, 'practice')" class="bg-[#4F6F52] text-white text-xs px-2 py-1 rounded-md font-bold hover:opacity-90">+ 新学年</button>
                 </div>
                 <div id="tree-container" class="space-y-2"></div>
             </div>
@@ -361,7 +361,7 @@
                     <span class="font-bold text-sage-text-main flex items-center gap-1">
                         <span class="material-symbols-outlined !text-[18px]">toc</span>背诵大纲知识树
                     </span>
-                    <button onclick="openAdminModal('grade', null)" class="bg-[#4F6F52] text-white text-xs px-2 py-1 rounded-md font-bold hover:opacity-90">+ 新学年</button>
+                    <button onclick="openAdminModal('grade', null, 'recite')" class="bg-[#4F6F52] text-white text-xs px-2 py-1 rounded-md font-bold hover:opacity-90">+ 新学年</button>
                 </div>
                 <div id="recite-tree-container" class="space-y-2"></div>
             </div>
@@ -872,7 +872,19 @@ function getDbKey() {
 function loadDbFromLocalStorage() {
     const cached = localStorage.getItem(getDbKey());
     db = cached ? JSON.parse(cached) : defaultInitialDatabase;
-    if (!db['初中地理']) db['初中地理'] = { tree: [], questions: [], recitations: [] };
+    
+    // 【核心升级逻辑】将旧的单树架构，平滑拆分为“刷题树”与“背诵树”
+    Object.keys(db).forEach(sub => {
+        if (db[sub].tree && (!db[sub].practiceTree || !db[sub].reciteTree)) {
+            db[sub].practiceTree = JSON.parse(JSON.stringify(db[sub].tree));
+            db[sub].reciteTree = JSON.parse(JSON.stringify(db[sub].tree));
+        }
+        if (!db[sub].practiceTree) db[sub].practiceTree = [];
+        if (!db[sub].reciteTree) db[sub].reciteTree = [];
+        if (!db[sub].questions) db[sub].questions = [];
+        if (!db[sub].recitations) db[sub].recitations = [];
+    });
+
     const s = localStorage.getItem('countdown_settings');
     if (s) countdownSettings = JSON.parse(s);
     const ts = localStorage.getItem('task_storage');
@@ -1251,10 +1263,55 @@ function renderTreeStructure(containerId, viewPrefix) {
     container.innerHTML = html;
 }
 
+function renderTreeStructure(containerId, viewPrefix) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const currentData = db[currentSubject];
+    
+    // 区分当前加载的是哪棵树
+    const targetTree = viewPrefix === 'practice' ? currentData.practiceTree : currentData.reciteTree;
+    if (!targetTree) return;
+
+    let html = '';
+    function traverse(nodes, depth = 0) {
+        nodes.forEach(node => {
+            const paddingLeft = depth * 16;
+            const count = countItems(node, viewPrefix);
+            const unit = viewPrefix === 'practice' ? '题' : '卡片';
+            const titleDisplay = `${node.title} <span class="text-sage-text-muted font-normal text-xs ml-1">(${count}${unit})</span>`;
+
+            let actionButtons = '';
+            actionButtons += `<span onclick="editTreeNode('${node.id}', '${viewPrefix}')" class="text-sage-text-muted hover:text-sage-primary cursor-pointer text-xs ml-1 transition-colors" title="修改名称"><span class="material-symbols-outlined !text-[14px]">edit</span></span>`;
+            actionButtons += `<span onclick="deleteTreeNode('${node.id}', '${viewPrefix}')" class="text-sage-text-muted hover:text-red-700 cursor-pointer text-xs ml-1 transition-colors" title="删除节点"><span class="material-symbols-outlined !text-[14px]">delete</span></span>`;
+            
+            if (node.type === 'grade') actionButtons += `<span onclick="openAdminModal('chapter', '${node.id}', '${viewPrefix}')" class="text-sage-text-muted font-bold cursor-pointer hover:text-sage-primary text-xs ml-2">+大考点</span>`;
+            if (node.type === 'chapter') actionButtons += `<span onclick="openAdminModal('point', '${node.id}', '${viewPrefix}')" class="text-sage-text-muted font-bold cursor-pointer hover:text-sage-primary text-xs ml-2">+小点</span>`;
+            if (node.type === 'point') actionButtons += `<span onclick="openSmartAddModal('${viewPrefix}', '${node.id}')" class="bg-sage-primary-light/40 border border-sage-border px-1.5 py-0.5 rounded text-xs text-sage-primary font-bold cursor-pointer hover:bg-sage-primary-light transition-colors ml-2">+录入</span>`;
+
+            let icon = node.type === 'point' ? 'menu_book' : (node.type === 'grade' ? 'account_tree' : 'folder');
+
+            html += `
+                <div class="flex items-start justify-between hover:bg-sage-bg p-1.5 rounded-lg transition-all" style="margin-left: ${paddingLeft}px">
+                    <div class="flex items-start gap-2 flex-1">
+                        <input type="checkbox" id="chk-${viewPrefix}-${node.id}" class="tree-checkbox text-sage-primary focus:ring-0 rounded border-sage-accent cursor-pointer mt-0.5">
+                        <span class="material-symbols-outlined text-sage-accent !text-[18px] select-none mt-0.5">${icon}</span>
+                        <span class="font-bold text-sage-text-main text-[13px] md:text-sm break-words whitespace-normal leading-snug">${titleDisplay}</span>
+                    </div>
+                    <div class="flex items-center gap-1 pl-2 shrink-0">${actionButtons}</div>
+                </div>
+            `;
+            if (node.children) traverse(node.children, depth + 1);
+        });
+    }
+    traverse(targetTree);
+    container.innerHTML = html;
+}
+
 function editTreeNode(id, viewPrefix) {
     let newTitle = prompt("请输入新的节点名称：");
     if (!newTitle || !newTitle.trim()) return;
-    let node = findNodeById(db[currentSubject].tree, id);
+    const targetTree = viewPrefix === 'practice' ? db[currentSubject].practiceTree : db[currentSubject].reciteTree;
+    let node = findNodeById(targetTree, id);
     if(node) { 
         node.title = newTitle.trim(); 
         saveDbToLocalStorage(); 
@@ -1263,13 +1320,14 @@ function editTreeNode(id, viewPrefix) {
 }
 
 function deleteTreeNode(id, viewPrefix) {
-    if(!confirm("确定要删除此节点吗？该节点下的所有子节点以及关联的题目/背诵卡片都将被永久删除！\n是否继续？")) return;
+    if(!confirm("确定要删除此节点吗？该节点下的所有子节点以及关联的内容都将被删除！")) return;
     let idsToDelete = new Set();
     function collectIds(node) {
         idsToDelete.add(node.id);
         if(node.children) node.children.forEach(collectIds);
     }
-    let node = findNodeById(db[currentSubject].tree, id);
+    const targetTree = viewPrefix === 'practice' ? db[currentSubject].practiceTree : db[currentSubject].reciteTree;
+    let node = findNodeById(targetTree, id);
     if(node) collectIds(node);
 
     function del(nodes) {
@@ -1279,10 +1337,13 @@ function deleteTreeNode(id, viewPrefix) {
         }
         return false;
     }
-    del(db[currentSubject].tree);
+    del(targetTree);
     
-    db[currentSubject].questions = db[currentSubject].questions.filter(q => !idsToDelete.has(q.pointId));
-    db[currentSubject].recitations = db[currentSubject].recitations.filter(r => !idsToDelete.has(r.pointId));
+    if (viewPrefix === 'practice') {
+        db[currentSubject].questions = db[currentSubject].questions.filter(q => !idsToDelete.has(q.pointId));
+    } else {
+        db[currentSubject].recitations = db[currentSubject].recitations.filter(r => !idsToDelete.has(r.pointId));
+    }
     
     saveDbToLocalStorage();
     renderTreeStructure(viewPrefix==='practice'?'tree-container':'recite-tree-container', viewPrefix);
@@ -1291,21 +1352,27 @@ function deleteTreeNode(id, viewPrefix) {
 
 let currentAdminType = '';
 let currentAdminParentId = '';
-function openAdminModal(type, parentId = null) {
+let currentAdminContext = 'practice'; 
+
+function openAdminModal(type, parentId = null, context = 'practice') {
     currentAdminType = type;
     currentAdminParentId = parentId;
+    currentAdminContext = context; 
     document.getElementById('admin-modal-title').innerText = type === 'grade' ? '新增学年' : type === 'chapter' ? '新增大考点' : '新增小考点';
     document.getElementById('admin-modal-input').value = '';
     document.getElementById('admin-modal').classList.remove('hidden');
 }
+
 function closeAdminModal() { document.getElementById('admin-modal').classList.add('hidden'); }
+
 function confirmAdminModal() {
     const val = document.getElementById('admin-modal-input').value.trim();
     if(!val) return alert('内容不能为空');
     const newId = 'node-' + Date.now();
+    const targetTree = currentAdminContext === 'practice' ? db[currentSubject].practiceTree : db[currentSubject].reciteTree;
     
     if (currentAdminType === 'grade') {
-        db[currentSubject].tree.push({ id: newId, title: val, type: 'grade', children: [] });
+        targetTree.push({ id: newId, title: val, type: 'grade', children: [] });
     } else {
         function addChild(nodes) {
             for(let n of nodes) {
@@ -1318,11 +1385,14 @@ function confirmAdminModal() {
             }
             return false;
         }
-        addChild(db[currentSubject].tree);
+        addChild(targetTree);
     }
     saveDbToLocalStorage(); closeAdminModal();
-    renderTreeStructure('tree-container', 'practice');
-    renderTreeStructure('recite-tree-container', 'recite');
+    if (currentAdminContext === 'practice') {
+        renderTreeStructure('tree-container', 'practice');
+    } else {
+        renderTreeStructure('recite-tree-container', 'recite');
+    }
 }
 
 // 智能录入弹窗逻辑 (Smart Add)
@@ -1662,6 +1732,8 @@ function renderImageWithZoom(imageSrc, masks, isFastMode) {
 function getSelectedPointIds(viewPrefix) {
     let checkedBoxes = document.querySelectorAll(`input[id^="chk-${viewPrefix}-"]:checked`);
     let points = new Set();
+    const targetTree = viewPrefix === 'practice' ? db[currentSubject].practiceTree : db[currentSubject].reciteTree;
+
     checkedBoxes.forEach(box => {
         let id = box.id.replace(`chk-${viewPrefix}-`, '');
         function findNode(nodes) {
@@ -1671,7 +1743,7 @@ function getSelectedPointIds(viewPrefix) {
             }
             return null;
         }
-        let node = findNode(db[currentSubject].tree);
+        let node = findNode(targetTree);
         if(node) {
             function getLeaves(n) {
                 if(n.type === 'point') points.add(n.id);
@@ -2205,7 +2277,7 @@ function execReciteTransfer(itemId, rating, isReviewMode) {
 
 
 // 沉淀本管理逻辑
-function getPointNamePath(pId) {
+function getPointNamePath(pId, context = null) {
     let path = '未知考点';
     function findNode(nodes, currentPath) {
         for (let n of nodes) {
@@ -2215,7 +2287,17 @@ function getPointNamePath(pId) {
         }
         return false;
     }
-    findNode(db[currentSubject].tree, "");
+    
+    if (context === 'recite') {
+        if (findNode(db[currentSubject].reciteTree, "")) return path;
+    } else if (context === 'practice') {
+        if (findNode(db[currentSubject].practiceTree, "")) return path;
+    } else {
+        // AI解析或旧代码兼容 fallback：先查刷题树，再查背诵树
+        if(!findNode(db[currentSubject].practiceTree, "")) {
+            findNode(db[currentSubject].reciteTree, "");
+        }
+    }
     return path;
 }
 
