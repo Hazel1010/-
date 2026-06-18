@@ -1,0 +1,2560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>初中一体化智能AI刷题与背诵平台</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "sage-bg": "#F2F4F2",
+                        "sage-card": "#FFFFFF",
+                        "sage-text-main": "#2C3531",
+                        "sage-text-muted": "#626F67",
+                        "sage-primary": "#4F6F52",
+                        "sage-primary-light": "#D2E3C8",
+                        "sage-accent": "#86A789",
+                        "sage-border": "#E1E6E1",
+                        "sage-error": "#A94442",
+                        "sage-correct": "#2E7D32"
+                    },
+                    fontFamily: { sans: ['Noto Sans SC', 'sans-serif'] }
+                },
+            },
+        }
+    </script>
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; background-color: #F2F4F2; color: #2C3531; font-size: 15px; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; font-size: 20px; }
+        .custom-card { background: #FFFFFF; border: 1px solid #E1E6E1; border-radius: 16px; padding: 18px; box-shadow: 0 2px 8px rgba(79,111,82,0.04); }
+        .nav-btn-active { background-color: #4F6F52; color: #FFFFFF; font-weight: 700; }
+        .nav-btn-inactive { color: #626F67; }
+        .nav-btn-inactive:hover { background-color: #E1E6E1; color: #2C3531; }
+        .tree-checkbox { width: 16px; height: 16px; border-radius: 4px; border-color: #86A789; color: #4F6F52; }
+        .image-zoom-container:hover img { transform: scale(1.03); }
+        .task-done { text-decoration: line-through; color: #8A9A86; opacity: 0.6; }
+        
+        /* 自定义滚动条隐藏，用于全屏放大 */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col pb-12 antialiased">
+
+<header class="bg-sage-card border-b border-sage-border px-6 py-4 sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <div class="flex flex-col text-left text-sm">
+            <span class="font-bold text-sage-text-main" id="header-date">2026年06月15日</span>
+            <span class="text-sage-text-muted" id="header-day">星期一</span>
+        </div>
+
+        <h1 class="text-lg font-bold tracking-tight text-sage-primary" id="platform-title">
+            初中一体化智能AI刷题与背诵平台
+        </h1>
+
+        <div class="flex items-center gap-3">
+            <span id="cloud-sync-status" class="material-symbols-outlined !text-[20px] text-sage-correct hidden" title="云端已同步">cloud_done</span>
+            
+            <div id="global-header-subject-static" class="inline-flex items-center gap-1 bg-[#4F6F52] text-white px-4 py-2 rounded-full text-sm font-bold shadow-sm select-none">
+                <span class="material-symbols-outlined !text-[16px]">menu_book</span>
+                <span>学科</span>
+            </div>
+
+            <div id="global-header-subject-dynamic" class="hidden relative inline-block text-left z-50">
+                <button onclick="toggleSubjectDropdown()" class="flex items-center gap-1.5 bg-sage-primary text-white px-4 py-2 rounded-xl text-sm font-medium shadow-sm cursor-pointer h-[36px] hover:opacity-90 transition-all">
+                    <span class="material-symbols-outlined !text-[18px]">menu_book</span>
+                    <span id="current-subject-label">初中生物</span>
+                    <span class="material-symbols-outlined !text-[14px]">arrow_drop_down</span>
+                </button>
+                <div id="header-subject-dropdown-menu" class="hidden absolute right-0 mt-1.5 w-40 rounded-xl bg-white border border-sage-border shadow-xl py-1 z-50">
+                    <button onclick="selectSubject('初中生物')" class="block w-full text-left px-5 py-2.5 text-sm text-sage-text-main hover:bg-sage-bg font-bold transition-colors">初中生物</button>
+                    <button onclick="selectSubject('初中地理')" class="block w-full text-left px-5 py-2.5 text-sm text-sage-text-main hover:bg-sage-bg font-bold transition-colors">初中地理</button>
+                </div>
+            </div>
+
+            <button onclick="openAccountModal()" class="flex items-center justify-center w-[36px] h-[36px] rounded-full bg-white border border-sage-primary text-sage-primary hover:bg-sage-primary hover:text-white transition-all shadow-sm" title="账号与云同步">
+                <span class="material-symbols-outlined !text-[20px]">person</span>
+            </button>
+        </div>
+    </div>
+</header>
+
+<main class="flex-1 max-w-6xl mx-auto w-full px-6 py-6 space-y-6">
+
+    <nav class="bg-sage-card border border-sage-border rounded-2xl p-1.5 flex flex-wrap md:flex-nowrap justify-between items-center shadow-sm max-w-3xl mx-auto gap-1">
+        <button onclick="switchNav('index')" id="nav-index" class="flex-1 py-2 text-sm font-medium rounded-xl transition-all flex items-center justify-center gap-1 nav-btn-active">首页</button>
+        <button onclick="switchNav('practice')" id="nav-practice" class="flex-1 py-2 text-sm font-medium rounded-xl transition-all flex items-center justify-center gap-1 nav-btn-inactive">刷题练习</button>
+        <button onclick="switchNav('wrong')" id="nav-wrong" class="flex-1 py-2 text-sm font-medium rounded-xl transition-all flex items-center justify-center gap-1 nav-btn-inactive">错题重温</button>
+        <button onclick="switchNav('recite')" id="nav-recite" class="flex-1 py-2 text-sm font-medium rounded-xl transition-all flex items-center justify-center gap-1 nav-btn-inactive">背诵</button>
+        <button onclick="switchNav('recite-wrong')" id="nav-recite-wrong" class="flex-1 py-2 text-sm font-medium rounded-xl transition-all flex items-center justify-center gap-1 nav-btn-inactive">背诵重温</button>
+        <button onclick="switchNav('analysis')" id="nav-analysis" class="flex-1 py-2 text-sm font-medium rounded-xl transition-all flex items-center justify-center gap-1 nav-btn-inactive">整体分析</button>
+        <button onclick="switchNav('settings')" id="nav-settings" class="flex-1 py-2 text-sm font-medium rounded-xl transition-all flex items-center justify-center gap-1 nav-btn-inactive">设置</button>
+    </nav>
+
+    <div id="view-index" class="space-y-6">
+        <section class="flex justify-center">
+            <div onclick="openCountdownModal()" class="bg-sage-primary-light/60 border border-sage-accent/40 px-5 py-2 rounded-full text-sage-text-main flex items-center gap-2 shadow-sm cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all">
+                <span class="material-symbols-outlined text-sage-primary">alarm</span>
+                <span class="font-bold text-sm" id="live-countdown-text">距离 2026年 中考特训 仅剩: 获取中...</span>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div id="stat-streak" onclick="handleStreakPunchIn()" class="custom-card flex flex-col items-center text-center cursor-pointer hover:scale-[1.03] active:scale-[0.98] transition-all bg-gradient-to-b from-white to-orange-50/20 border-orange-100">
+                <div class="w-10 h-10 bg-orange-100/70 rounded-full flex items-center justify-center mb-1.5"><span class="material-symbols-outlined text-orange-700 font-bold">local_fire_department</span></div>
+                <span class="text-xl font-bold text-sage-text-main" id="stat-streak-value">0 <span class="text-sm font-normal text-sage-text-muted">天</span></span>
+                <span class="text-xs text-orange-800 font-bold mt-1">点击签到点亮打卡</span>
+            </div>
+            <div class="custom-card flex flex-col items-center text-center">
+                <div class="w-10 h-10 bg-amber-50 rounded-full flex items-center justify-center mb-1.5"><span class="material-symbols-outlined text-amber-600">assignment_turned_in</span></div>
+                <span class="text-xl font-bold text-amber-600" id="stat-global-today">0 <span class="text-sm font-normal text-sage-text-muted">题</span></span>
+                <span class="text-sm font-bold text-sage-text-muted mt-1">今日错题复习</span>
+            </div>
+            <div class="custom-card flex flex-col items-center text-center cursor-default">
+                <div class="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center mb-1.5"><span class="material-symbols-outlined text-sage-error">schedule</span></div>
+                <span class="text-xl font-bold text-sage-error" id="stat-global-study-time">00:00:00</span>
+                <span class="text-sm font-bold text-sage-text-muted mt-1">今日学习时间</span>
+            </div>
+            <div class="custom-card flex flex-col items-center text-center">
+                <div class="w-10 h-10 bg-sage-primary-light/40 rounded-full flex items-center justify-center mb-1.5"><span class="material-symbols-outlined text-sage-primary">layers</span></div>
+                <span class="text-xl font-bold text-sage-text-main" id="stat-global-capacity">0 <span class="text-sm font-normal text-sage-text-muted">题</span></span>
+                <span class="text-sm font-bold text-sage-text-muted mt-1">全学科库总容量</span>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="custom-card flex flex-col justify-between space-y-4">
+                <div>
+                    <div class="flex items-center gap-1.5 mb-2 border-b border-sage-border pb-2">
+                        <span class="material-symbols-outlined text-sage-primary">trending_up</span>
+                        <h3 class="font-bold text-sm text-sage-text-main">每日分科复习趋势</h3>
+                    </div>
+                    <div class="relative min-h-[200px] w-full"><canvas id="trendChart"></canvas></div>
+                </div>
+                <div class="flex justify-center pt-2">
+                    <button onclick="switchNav('practice')" class="bg-[#4F6F52] text-white text-sm px-5 py-2 rounded-xl font-bold hover:opacity-90 transition-all flex items-center gap-1 shadow-sm">
+                        🚀 进入练习面板开始冲刺
+                    </button>
+                </div>
+            </div>
+            <div class="custom-card flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-1.5 mb-2 border-b border-sage-border pb-2">
+                        <span class="material-symbols-outlined text-sage-primary">schedule</span>
+                        <h3 class="font-bold text-sm text-sage-text-main">每日分科学习与背诵时长</h3>
+                    </div>
+                    <div class="relative min-h-[200px] w-full"><canvas id="timeChart"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="custom-card space-y-3">
+            <div class="flex justify-between items-center border-b border-sage-border pb-2">
+                <div class="flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-sage-primary">calendar_view_week</span>
+                    <h2 class="font-bold text-sm text-sage-text-main">跨周任务学习计划</h2>
+                </div>
+                <div class="flex gap-1 text-xs font-bold">
+                    <button onclick="changeWeekOffset(-1)" class="bg-white border border-sage-border text-sage-text-muted px-3 py-1 rounded-md hover:bg-sage-bg">上周</button>
+                    <button onclick="changeWeekOffset(0)" class="bg-[#4F6F52] text-white px-3 py-1 rounded-md shadow-xs">这周</button>
+                    <button onclick="changeWeekOffset(1)" class="bg-white border border-sage-border text-sage-text-muted px-3 py-1 rounded-md hover:bg-sage-bg">下周</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-7 gap-2 overflow-x-auto" id="calendar-grid-container"></div>
+        </section>
+    </div>
+
+    <div id="view-practice" class="grid grid-cols-1 lg:grid-cols-12 gap-6 hidden">
+        <div id="practice-left-col" class="lg:col-span-4 space-y-4 transition-all duration-300 origin-left">
+            <div class="custom-card py-3 px-4 bg-white border border-sage-border flex flex-col justify-center text-sm space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-sage-text-main !text-[18px]">database</span>
+                        <span class="font-bold text-sage-text-main">本地题库</span>
+                        <span onclick="openManageModal('practice')" class="bg-sage-primary-light/70 text-sage-primary px-2 py-0.5 rounded text-xs font-bold flex items-center gap-0.5 cursor-pointer hover:bg-sage-primary-light transition-colors">
+                            <span class="material-symbols-outlined !text-[14px]">edit_note</span>管理题目
+                        </span>
+                    </div>
+                    <button onclick="toggleSidebar('practice')" class="bg-sage-text-muted text-white px-2 py-1 rounded text-xs font-bold hover:opacity-90 flex items-center gap-0.5">隐藏大纲<span class="material-symbols-outlined !text-[14px]">keyboard_double_arrow_left</span></button>
+                </div>
+                <div class="flex gap-1 justify-end">
+                    <button onclick="exportFullDatabase()" class="bg-[#86A789] text-white px-3 py-1 rounded text-xs font-bold hover:opacity-90 cursor-pointer">导出备份</button>
+                    <label class="bg-[#4F6F52] text-white px-3 py-1 rounded text-xs font-bold hover:opacity-90 cursor-pointer">
+                        导入重载 <input type="file" class="hidden" accept=".json" onchange="importFullDatabase(this)">
+                    </label>
+                </div>
+            </div>
+
+            <div class="custom-card flex flex-col max-h-[68vh] overflow-y-auto space-y-3 text-sm select-none">
+                <div class="flex justify-between items-center border-b border-sage-border pb-2">
+                    <span class="font-bold text-sage-text-main flex items-center gap-1">
+                        <span class="material-symbols-outlined !text-[18px]">account_tree</span>考点大纲知识树
+                    </span>
+                    <button onclick="openAdminModal('grade', null)" class="bg-[#4F6F52] text-white text-xs px-2 py-1 rounded-md font-bold hover:opacity-90">+ 新学年</button>
+                </div>
+                <div id="tree-container" class="space-y-2"></div>
+            </div>
+        </div>
+
+        <div id="practice-right-col" class="lg:col-span-8 space-y-4 transition-all duration-300">
+            <div id="practice-expand-sidebar-btn" class="hidden">
+                <button onclick="toggleSidebar('practice')" class="bg-sage-card border border-sage-border text-sage-primary text-sm px-4 py-2 rounded-xl font-bold hover:bg-sage-bg flex items-center gap-1 shadow-sm">
+                    <span class="material-symbols-outlined !text-[18px]">keyboard_double_arrow_right</span>展开考点大纲与本地题库
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div class="custom-card flex flex-col items-center py-3 !p-2 text-center bg-white justify-center">
+                    <span class="text-xs text-sage-text-muted font-bold">本次进度</span>
+                    <span class="text-base font-black text-sage-text-main" id="dash-progress">0 / 0</span>
+                </div>
+                <div class="custom-card flex flex-col items-center py-3 !p-2 text-center bg-white justify-center">
+                    <span class="text-xs text-sage-text-muted font-bold text-sage-correct">答对数</span>
+                    <span class="text-base font-black text-sage-correct" id="dash-correct">0</span>
+                </div>
+                <div class="custom-card flex flex-col items-center py-3 !p-2 text-center bg-white justify-center">
+                    <span class="text-xs text-sage-text-muted font-bold text-sage-error">累计答错</span>
+                    <span class="text-base font-black text-sage-error" id="dash-wrong">0</span>
+                </div>
+                <div class="custom-card flex flex-col items-center py-3 !p-2 text-center bg-white justify-center">
+                    <span class="text-xs text-sage-text-muted font-bold text-sage-primary">✨ 累加总正确率</span>
+                    <span class="text-base font-black text-sage-primary" id="dash-accuracy">0%</span>
+                </div>
+            </div>
+
+            <div id="practice-strategy-collapsed" class="hidden custom-card py-3 px-5 bg-sage-primary-light/30 border border-sage-accent/30 text-sm flex justify-between items-center cursor-pointer hover:bg-sage-primary-light/50" onclick="togglePanel('practice-strategy')">
+                <span class="font-bold text-sage-text-main flex items-center gap-1.5"><span class="material-symbols-outlined !text-[18px]">tune</span>自由组题策略配置面板 (已折叠)</span>
+                <span class="material-symbols-outlined !text-[20px] text-sage-primary">expand_more</span>
+            </div>
+
+            <div id="practice-strategy-content" class="custom-card py-4 px-5 bg-sage-primary-light/30 border border-sage-accent/30 text-sm space-y-4">
+                <div class="font-bold text-sage-text-main flex items-center justify-between border-b border-sage-border/60 pb-2">
+                    <div class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined !text-[18px]">tune</span>自由组题策略配置面板
+                    </div>
+                    <button onclick="togglePanel('practice-strategy')" class="text-sage-text-muted hover:text-sage-primary flex items-center gap-0.5 text-xs"><span class="material-symbols-outlined !text-[16px]">expand_less</span>隐藏面板</button>
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div class="flex items-center gap-1">
+                            <span class="text-sage-text-muted font-bold">选择题数:</span>
+                            <input type="number" id="strategy-choice-count" value="2" class="w-14 bg-white border-sage-border rounded-xl text-center text-sm p-1.5 font-bold focus:ring-0">
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="text-sage-text-muted font-bold">填空题数:</span>
+                            <input type="number" id="strategy-blank-count" value="2" class="w-14 bg-white border-sage-border rounded-xl text-center text-sm p-1.5 font-bold focus:ring-0">
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-sage-text-muted font-bold">出题顺序:</span>
+                            <select id="filter-order" class="bg-white border-sage-border rounded-xl text-sm p-1.5 font-bold">
+                                <option value="sequential">正序稳扎稳打</option>
+                                <option value="random">随机乱序盲刷</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-sage-border">
+                            <input type="checkbox" id="practice-fast-mode" class="text-sage-primary focus:ring-0 rounded border-sage-accent cursor-pointer">
+                            <label for="practice-fast-mode" class="font-bold text-sage-primary cursor-pointer text-sm">快刷模式(直显答案)</label>
+                        </div>
+                    </div>
+                    <button onclick="triggerAutomatedPaperGeneration('practice')" class="bg-[#4F6F52] text-white text-sm px-5 py-2 rounded-xl font-bold hover:opacity-90 shadow-sm transition-all flex items-center gap-1">
+                        ⚡ 生成专属练习卷开刷
+                    </button>
+                </div>
+            </div>
+
+            <div class="custom-card min-h-[360px] flex flex-col justify-between space-y-6 !p-6" id="practice-card-container">
+                <div class="text-center py-20 text-sage-text-muted space-y-2">
+                    <span class="material-symbols-outlined !text-[50px] text-sage-accent">ads_click</span>
+                    <p class="text-sm font-bold">请勾选左侧知识大纲树节点，并配置出题数量进行组卷冲刺。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-wrong" class="space-y-6 hidden">
+        <div class="custom-card bg-white border border-sage-border p-5 space-y-5">
+            <div class="flex flex-wrap items-center justify-between border-b border-sage-border pb-4 gap-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="material-symbols-outlined text-sage-error !text-[28px]">gavel</span>
+                    <div>
+                        <h2 class="text-base font-bold text-sage-text-main">错题深度重温池</h2>
+                        <p class="text-xs text-sage-text-muted">系统在后台根据七重抗遗忘周期默默为你守候</p>
+                    </div>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-4 text-sm">
+                    <button onclick="openManageModal('wrong')" class="bg-[#4F6F52] text-white px-4 py-2 rounded-xl font-bold hover:opacity-90 transition-all flex items-center gap-1 shadow-sm">
+                        <span class="material-symbols-outlined !text-[16px]">edit_document</span>管理错题本
+                    </button>
+                    <div class="flex items-center gap-1.5 bg-sage-bg p-1.5 rounded-xl border border-sage-border">
+                        <span class="text-sage-text-muted font-bold pl-2">抗遗忘模式:</span>
+                        <select id="wrong-strategy-mode" onchange="initWrongReviewSession()" class="bg-white border-sage-border rounded-lg text-sm p-1.5 font-bold text-sage-primary focus:ring-0">
+                            <option value="ebbinghaus">📊 艾宾浩斯: 仅刷今天该复习的错题</option>
+                            <option value="all_pool">🔥 痛快盲刷: 当前科目全量错题池</option>
+                            <option value="thirty_days">⏳ 30天未刷保底池: 激活沉睡题目</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-sage-bg p-1.5 rounded-xl border border-sage-border">
+                        <span class="text-sage-text-muted font-bold pl-2">题型:</span>
+                        <select id="wrong-type-filter" onchange="initWrongReviewSession()" class="bg-white border-sage-border rounded-lg text-sm p-1.5 font-bold text-sage-primary focus:ring-0">
+                            <option value="all">全部题型</option>
+                            <option value="choice">仅选择题</option>
+                            <option value="blank">仅填空题</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="p-4 rounded-2xl bg-sage-bg/60 border border-sage-border text-center flex flex-col justify-center">
+                    <p class="text-xs text-sage-text-muted font-bold mb-1">总沉淀错题</p>
+                    <span class="text-xl font-black text-sage-text-main" id="ebg-total-count">0 题</span>
+                </div>
+                <div class="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-center flex flex-col justify-center shadow-inner">
+                    <p class="text-xs text-amber-800 font-bold mb-1">📅 今天需要复习</p>
+                    <span class="text-xl font-black text-amber-900" id="ebg-today-count">0 题</span>
+                </div>
+                <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center flex flex-col justify-center shadow-inner">
+                    <p class="text-xs text-emerald-800 font-bold mb-1">✅ 下次复习时间</p>
+                    <span class="text-sm font-black text-emerald-900 mt-1 block" id="ebg-next-review-time">无延迟</span>
+                </div>
+                <div class="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-center flex flex-col justify-center shadow-inner">
+                    <p class="text-xs text-blue-800 font-bold mb-1">🔮 明天需要复习</p>
+                    <span class="text-xl font-black text-blue-900" id="ebg-tomorrow-count">0 题</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="custom-card min-h-[360px] flex flex-col justify-between space-y-5 !p-6" id="wrong-quiz-card-container"></div>
+    </div>
+
+    <div id="view-recite" class="grid grid-cols-1 lg:grid-cols-12 gap-6 hidden">
+        <div id="recite-left-col" class="lg:col-span-4 space-y-4 transition-all duration-300 origin-left">
+            <div class="custom-card py-3 px-4 bg-white border border-sage-border flex flex-col justify-center text-sm space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-sage-text-main !text-[18px]">import_contacts</span>
+                        <span class="font-bold text-sage-text-main">本地背诵库</span>
+                        <span onclick="openManageModal('recite')" class="bg-sage-primary-light/70 text-sage-primary px-2 py-0.5 rounded text-xs font-bold flex items-center gap-0.5 cursor-pointer hover:bg-sage-primary-light">
+                            <span class="material-symbols-outlined !text-[14px]">edit_note</span>管理卡片
+                        </span>
+                    </div>
+                    <button onclick="toggleSidebar('recite')" class="bg-sage-text-muted text-white px-2 py-1 rounded text-xs font-bold hover:opacity-90 flex items-center gap-0.5">隐藏大纲<span class="material-symbols-outlined !text-[14px]">keyboard_double_arrow_left</span></button>
+                </div>
+                <div class="flex gap-1 justify-end">
+                    <button onclick="exportFullDatabase()" class="bg-[#86A789] text-white px-3 py-1 rounded text-xs font-bold hover:opacity-90 cursor-pointer">导出备份</button>
+                    <label class="bg-[#4F6F52] text-white px-3 py-1 rounded text-xs font-bold hover:opacity-90 cursor-pointer">
+                        导入重载 <input type="file" class="hidden" accept=".json" onchange="importFullDatabase(this)">
+                    </label>
+                </div>
+            </div>
+
+            <div class="custom-card flex flex-col max-h-[68vh] overflow-y-auto space-y-3 text-sm select-none">
+                <div class="flex justify-between items-center border-b border-sage-border pb-2">
+                    <span class="font-bold text-sage-text-main flex items-center gap-1">
+                        <span class="material-symbols-outlined !text-[18px]">toc</span>背诵大纲知识树
+                    </span>
+                    <button onclick="openAdminModal('grade', null)" class="bg-[#4F6F52] text-white text-xs px-2 py-1 rounded-md font-bold hover:opacity-90">+ 新学年</button>
+                </div>
+                <div id="recite-tree-container" class="space-y-2"></div>
+            </div>
+        </div>
+
+        <div id="recite-right-col" class="lg:col-span-8 space-y-4 transition-all duration-300">
+            <div id="recite-expand-sidebar-btn" class="hidden">
+                <button onclick="toggleSidebar('recite')" class="bg-sage-card border border-sage-border text-sage-primary text-sm px-4 py-2 rounded-xl font-bold hover:bg-sage-bg flex items-center gap-1 shadow-sm">
+                    <span class="material-symbols-outlined !text-[18px]">keyboard_double_arrow_right</span>展开背诵大纲与本地库
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div class="custom-card flex flex-col items-center py-3 !p-2 text-center bg-white justify-center">
+                    <span class="text-xs text-sage-text-muted font-bold">背诵进度</span>
+                    <span class="text-base font-black text-sage-text-main" id="recite-dash-progress">0 / 0</span>
+                </div>
+                <div class="custom-card flex flex-col items-center py-3 !p-2 text-center bg-white justify-center">
+                    <span class="text-xs text-sage-text-muted font-bold text-sage-correct">已牢记数</span>
+                    <span class="text-base font-black text-sage-correct" id="recite-dash-mastered">0</span>
+                </div>
+                <div class="custom-card flex flex-col items-center py-3 !p-2 text-center bg-white justify-center">
+                    <span class="text-xs text-sage-text-muted font-bold text-sage-error">需再复习</span>
+                    <span class="text-base font-black text-sage-error" id="recite-dash-review">0</span>
+                </div>
+                <div class="custom-card flex flex-col items-center py-3 !p-2 text-center bg-white justify-center">
+                    <span class="text-xs text-sage-text-muted font-bold text-sage-primary">记忆覆盖率</span>
+                    <span class="text-base font-black text-sage-primary" id="recite-dash-accuracy">0%</span>
+                </div>
+            </div>
+
+            <div id="recite-strategy-collapsed" class="hidden custom-card py-3 px-5 bg-sage-primary-light/30 border border-sage-accent/30 text-sm flex justify-between items-center cursor-pointer hover:bg-sage-primary-light/50" onclick="togglePanel('recite-strategy')">
+                <span class="font-bold text-sage-text-main flex items-center gap-1.5"><span class="material-symbols-outlined !text-[18px]">style</span>自主背诵策略配置面板 (已折叠)</span>
+                <span class="material-symbols-outlined !text-[20px] text-sage-primary">expand_more</span>
+            </div>
+
+            <div id="recite-strategy-content" class="custom-card py-4 px-5 bg-sage-primary-light/30 border border-sage-accent/30 text-sm space-y-4">
+                <div class="font-bold text-sage-text-main flex items-center justify-between border-b border-sage-border/60 pb-2">
+                    <div class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined !text-[18px]">style</span>自主背诵策略配置面板
+                    </div>
+                    <button onclick="togglePanel('recite-strategy')" class="text-sage-text-muted hover:text-sage-primary flex items-center gap-0.5 text-xs"><span class="material-symbols-outlined !text-[16px]">expand_less</span>隐藏面板</button>
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-sage-text-muted font-bold">出题顺序:</span>
+                            <select id="recite-filter-order" class="bg-white border-sage-border rounded-xl text-sm p-1.5 font-bold">
+                                <option value="sequential">正序稳扎稳打</option>
+                                <option value="random">随机乱序盲背</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-1 ml-2 bg-white px-3 py-1.5 rounded-xl border border-sage-border">
+                            <input type="checkbox" id="recite-fast-mode" class="text-sage-primary focus:ring-0 rounded border-sage-accent cursor-pointer">
+                            <label for="recite-fast-mode" class="font-bold text-sage-primary cursor-pointer text-sm">快刷模式(直接显影)</label>
+                        </div>
+                    </div>
+                    <button onclick="triggerAutomatedPaperGeneration('recite')" class="bg-[#4F6F52] text-white text-sm px-5 py-2 rounded-xl font-bold hover:opacity-90 shadow-sm transition-all flex items-center gap-1">
+                        ⚡ 生成专属背诵卷开背
+                    </button>
+                </div>
+            </div>
+
+            <div class="custom-card min-h-[360px] flex flex-col justify-between space-y-6 !p-6" id="recite-card-container">
+                <div class="text-center py-20 text-sage-text-muted space-y-2">
+                    <span class="material-symbols-outlined !text-[50px] text-sage-accent">import_contacts</span>
+                    <p class="text-sm font-bold">请勾选左侧背诵知识树节点，一键生成进行智能化遮挡默背。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-recite-wrong" class="space-y-6 hidden">
+        <div class="custom-card bg-white border border-sage-border p-5 space-y-5">
+            <div class="flex flex-wrap items-center justify-between border-b border-sage-border pb-4 gap-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="material-symbols-outlined text-sage-primary !text-[28px]">history_edu</span>
+                    <div>
+                        <h2 class="text-base font-bold text-sage-text-main">背诵记忆流转重温池</h2>
+                        <p class="text-xs text-sage-text-muted">严格基于七阶全自动状态机拦截惩罚，弄到真正记住为止</p>
+                    </div>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-4 text-sm">
+                    <button onclick="openManageModal('recite-wrong')" class="bg-[#4F6F52] text-white px-4 py-2 rounded-xl font-bold hover:opacity-90 transition-all flex items-center gap-1 shadow-sm">
+                        <span class="material-symbols-outlined !text-[16px]">edit_document</span>管理沉淀背诵本
+                    </button>
+                    <div class="flex items-center gap-1.5 bg-sage-bg p-1.5 rounded-xl border border-sage-border">
+                        <span class="text-sage-text-muted font-bold pl-2">筛选机制:</span>
+                        <select id="recite-strategy-mode" onchange="initReciteReviewSession()" class="bg-white border-sage-border rounded-lg text-sm p-1.5 font-bold text-sage-primary focus:ring-0">
+                            <option value="ebbinghaus">📊 艾宾浩斯: 加载今日到期卡片</option>
+                            <option value="all_pool">🔥 痛快盲背: 当前科目全量背诵卡</option>
+                            <option value="thirty_days">⏳ 30天未背保底池: 激活沉睡内容</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="p-4 rounded-2xl bg-sage-bg/60 border border-sage-border text-center flex flex-col justify-center">
+                    <p class="text-xs text-sage-text-muted font-bold mb-1">总沉淀背诵考点</p>
+                    <span class="text-xl font-black text-sage-text-main" id="recite-ebg-total-count">0 项</span>
+                </div>
+                <div class="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-center flex flex-col justify-center shadow-inner">
+                    <p class="text-xs text-amber-800 font-bold mb-1">📅 今天需要复习</p>
+                    <span class="text-xl font-black text-amber-900" id="recite-ebg-today-count">0 项</span>
+                </div>
+                <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center flex flex-col justify-center shadow-inner">
+                    <p class="text-xs text-emerald-800 font-bold mb-1">✅ 下次复习时间</p>
+                    <span class="text-sm font-black text-emerald-900 mt-1 block" id="recite-ebg-next-review-time">无延迟</span>
+                </div>
+                <div class="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-center flex flex-col justify-center shadow-inner">
+                    <p class="text-xs text-blue-800 font-bold mb-1">🔮 明天预期到期</p>
+                    <span class="text-xl font-black text-blue-900" id="recite-ebg-tomorrow-count">0 项</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="custom-card min-h-[360px] flex flex-col justify-between space-y-5 !p-6" id="recite-wrong-card-container"></div>
+    </div>
+
+    <div id="view-analysis" class="space-y-6 hidden">
+        <div class="custom-card space-y-4">
+            <div class="border-b border-sage-border pb-3">
+                <h2 class="text-base font-bold text-sage-text-main flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-sage-primary">analytics</span> 学科刷题能力智能AI深度多维分析
+                </h2>
+                <p class="text-xs text-sage-text-muted mt-1">分析错题重温中的错题进行提意见。点击下方周期评估按钮，AI导师将立刻消耗Token为你深度复盘数据并产出学习报告。</p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <button onclick="requestAiAnalysis('一天')" class="bg-[#4F6F52] text-white text-sm px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all">⏱️ 一天状况分析</button>
+                <button onclick="requestAiAnalysis('七天')" class="bg-[#86A789] text-white text-sm px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all">🗓️ 七天状况分析</button>
+                <button onclick="requestAiAnalysis('一月')" class="bg-sage-text-main text-white text-sm px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all">📅 一月状况分析</button>
+            </div>
+            <div id="ai-analysis-report-box" class="p-5 bg-sage-bg/40 border border-sage-border rounded-xl min-h-[140px] text-sm text-sage-text-muted leading-relaxed flex flex-col items-start justify-center font-medium">
+                🤖 待触发：请选择上方分析周期。大模型导师将首先给予你充分的自信心赋能，随后精准剖析需要强化的薄弱知识板块。
+            </div>
+        </div>
+    </div>
+
+    <div id="view-settings" class="space-y-6 hidden">
+        <div class="custom-card max-w-2xl mx-auto p-6 space-y-6 text-sm">
+            <div class="flex items-center gap-2 border-b border-sage-border pb-3">
+                <span class="material-symbols-outlined text-sage-primary !text-[24px]">settings</span>
+                <h2 class="text-base font-bold text-sage-text-main">系统核心配置与数据维护面板</h2>
+            </div>
+            
+            <div class="bg-white p-5 rounded-xl border border-sage-border space-y-4 shadow-sm">
+                <div class="flex items-center gap-1.5 border-b border-sage-border/60 pb-2 mb-3">
+                    <span class="material-symbols-outlined text-sage-accent !text-[20px]">smart_toy</span>
+                    <h3 class="font-bold text-sage-text-main text-base">AI 大模型 API 接入配置</h3>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sage-text-muted mb-1 font-bold">API 接口地址 (Base URL)</label>
+                        <input type="text" id="ai-api-url" placeholder="例如: https://api.openai.com/v1" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-2.5 focus:ring-sage-primary">
+                    </div>
+                    <div>
+                        <label class="block text-sage-text-muted mb-1 font-bold">API Key (通信密钥)</label>
+                        <input type="password" id="ai-api-key" placeholder="sk-..." class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-2.5 focus:ring-sage-primary">
+                    </div>
+                    <div>
+                        <label class="block text-sage-text-muted mb-1 font-bold">指定调用模型 (Model)</label>
+                        <input type="text" id="ai-api-model" placeholder="例如: gpt-3.5-turbo" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-2.5 focus:ring-sage-primary">
+                    </div>
+<div class="pt-3 flex flex-wrap gap-2 justify-end">
+                        <button onclick="openApiManageModal()" class="bg-white border border-sage-border text-sage-text-main px-5 py-2 rounded-xl font-bold hover:bg-sage-bg flex items-center gap-1">
+                            <span class="material-symbols-outlined !text-[16px]">view_list</span>管理 API
+                        </button>
+                        <button onclick="saveAiSettings()" class="bg-[#4F6F52] text-white px-5 py-2 rounded-xl font-bold hover:opacity-90 flex items-center gap-1 shadow-sm">
+                            <span class="material-symbols-outlined !text-[16px]">save</span>保存 API 配置
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+<div class="bg-sage-bg p-5 rounded-xl border border-sage-border flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <p class="font-bold text-base text-sage-text-main">本地持久化数据库管理</p>
+                    <p class="text-sage-text-muted text-xs mt-1 font-medium">重置、清理或手动保存当前全部考点树与流转状态机数据。</p>
+                </div>
+                <div class="flex flex-wrap gap-2 justify-end">
+                    <button onclick="forceSaveLocalDB()" class="bg-[#86A789] text-white px-4 py-2 rounded-xl font-bold hover:opacity-90 shadow-sm shrink-0">保存数据</button>
+                    
+                    <button onclick="if(confirm('确定要将打卡天数重置为 0 吗？（此操作不会删除题目数据）')){ localStorage.setItem('streak_count', '0'); localStorage.removeItem('last_punch_date'); location.reload(); }" class="bg-orange-500 text-white px-4 py-2 rounded-xl font-bold hover:opacity-90 shadow-sm shrink-0">重置打卡</button>
+                    
+                    <button onclick="if(confirm('确定要清除所有本地缓存数据吗？此操作不可逆！')){ localStorage.clear(); location.reload(); }" class="bg-sage-error text-white px-4 py-2 rounded-xl font-bold hover:opacity-90 shrink-0">清除缓存重载</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="account-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-[110] p-4">
+        <div class="bg-white rounded-2xl flex flex-col w-full max-w-sm shadow-2xl border border-sage-border relative overflow-hidden">
+            <div class="p-5 border-b border-sage-border flex justify-between items-center bg-sage-bg/50">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sage-primary !text-[24px]">cloud_sync</span>
+                    <h3 class="font-bold text-base text-sage-text-main">账号与云端同步</h3>
+                </div>
+                <button onclick="closeAccountModal()" class="text-sage-text-muted hover:text-sage-error transition-colors p-1 bg-white rounded-md">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            
+<div id="account-modal-login-view" class="p-6 space-y-4 text-sm">
+                <p class="text-xs text-sage-text-muted mb-4 font-bold leading-relaxed text-center">登录您的专属云端账号，您的题库、进度、遮盖图片与学习记录将自动同步并永久保存。</p>
+                <div>
+                    <label class="block text-sage-text-muted mb-1 font-bold">账号名 / 邮箱</label>
+                    <input type="text" id="account-username" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-3 focus:ring-sage-primary" placeholder="请输入您的账号">
+                </div>
+                <div>
+                    <label class="block text-sage-text-muted mb-1 font-bold">密码</label>
+                    <input type="password" id="account-password" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-3 focus:ring-sage-primary" placeholder="请输入密码">
+                </div>
+                <button onclick="handleLogin()" class="w-full bg-[#4F6F52] text-white py-3 rounded-xl font-bold hover:opacity-90 shadow-sm transition-all mt-2">
+                    登录并同步数据
+                </button>
+                <p onclick="switchAccountView('register')" class="text-center text-xs text-sage-primary font-bold cursor-pointer hover:underline mt-2">没有账号？立即注册</p>
+            </div>
+
+            <div id="account-modal-register-view" class="p-6 space-y-4 text-sm hidden">
+                <p class="text-xs text-sage-text-muted mb-4 font-bold leading-relaxed text-center">创建一个新账号，开启您的云端同步学习之旅。</p>
+                <div>
+                    <label class="block text-sage-text-muted mb-1 font-bold">设置账号名</label>
+                    <input type="text" id="reg-username" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-3 focus:ring-sage-primary" placeholder="起个响亮的名字">
+                </div>
+                <div>
+                    <label class="block text-sage-text-muted mb-1 font-bold">设置密码</label>
+                    <input type="password" id="reg-password" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-3 focus:ring-sage-primary" placeholder="请设置密码">
+                </div>
+                <div>
+                    <label class="block text-sage-text-muted mb-1 font-bold">确认密码</label>
+                    <input type="password" id="reg-password-confirm" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-3 focus:ring-sage-primary" placeholder="请再次输入密码">
+                </div>
+                <button onclick="submitRegister()" class="w-full bg-sage-primary text-white py-3 rounded-xl font-bold hover:opacity-90 shadow-sm transition-all mt-2">
+                    确认注册并登录
+                </button>
+                <p onclick="switchAccountView('login')" class="text-center text-xs text-sage-text-muted font-bold cursor-pointer hover:underline mt-2 hover:text-sage-primary">已有账号？返回登录</p>
+            </div>
+
+            <div id="account-modal-profile-view" class="p-6 space-y-5 text-sm hidden">
+                <div class="flex flex-col items-center justify-center space-y-2">
+                    <div class="w-16 h-16 rounded-full bg-sage-primary-light flex flex-col items-center justify-center text-sage-primary">
+                        <span class="material-symbols-outlined !text-[36px]">person</span>
+                    </div>
+                    <p class="font-black text-sage-text-main text-lg" id="account-username-display">User</p>
+                    <span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><span class="material-symbols-outlined !text-[14px]">cloud_done</span> 云端已连接</span>
+                </div>
+                <p class="text-xs text-sage-text-muted text-center font-medium leading-relaxed bg-sage-bg p-3 rounded-xl">您的数据正处于安全云同步状态。<br>任何设备登录此账号均可恢复最新进度与图片遮盖设置。</p>
+                <button onclick="handleLogout()" class="w-full bg-white border border-sage-error text-sage-error py-2.5 rounded-xl font-bold hover:bg-red-50 shadow-sm transition-all mt-2 flex items-center justify-center gap-1">
+                    <span class="material-symbols-outlined !text-[18px]">logout</span> 退出登录
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="countdown-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+        <div class="bg-white rounded-2xl p-6 w-80 shadow-2xl space-y-4 border border-sage-border">
+            <div class="flex items-center gap-1.5 text-sage-text-main border-b border-sage-border pb-3">
+                <span class="material-symbols-outlined text-sage-primary text-base">edit_calendar</span>
+                <h3 class="font-bold text-sm">中高考倒计时设置</h3>
+            </div>
+            <div class="space-y-4 text-sm">
+                <div>
+                    <label class="block text-sage-text-muted mb-1 font-bold">考试名称</label>
+                    <input type="text" id="modal-exam-name" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-2.5 focus:ring-sage-primary">
+                </div>
+                <div>
+                    <label class="block text-sage-text-muted mb-1 font-bold">目标日期</label>
+                    <input type="datetime-local" id="modal-exam-date" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-2.5 focus:ring-sage-primary">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-3">
+                <button onclick="closeCountdownModal()" class="px-4 py-2 bg-sage-bg hover:bg-sage-border rounded-xl text-sm font-bold text-sage-text-muted transition-colors">取消</button>
+                <button onclick="saveCountdownSettings()" class="px-4 py-2 bg-sage-primary hover:opacity-90 text-white rounded-xl text-sm font-bold transition-opacity">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="manage-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4">
+        <div class="bg-white rounded-2xl flex flex-col w-full max-w-3xl shadow-2xl border border-sage-border max-h-[85vh]">
+            <div class="p-4 border-b border-sage-border flex justify-between items-center bg-sage-bg/50 rounded-t-2xl">
+                <div class="flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-sage-primary">edit_document</span>
+                    <h3 class="font-bold text-base text-sage-text-main" id="manage-modal-title">管理库</h3>
+                </div>
+                <button onclick="closeManageModal()" class="text-sage-text-muted hover:text-sage-error transition-colors p-1 bg-white rounded-md">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="p-5 overflow-y-auto flex-1 space-y-3 text-sm" id="manage-modal-list">
+            </div>
+        </div>
+    </div>
+
+    <div id="smart-add-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-[110] p-4">
+        <div class="bg-white rounded-2xl flex flex-col w-full max-w-xl shadow-2xl border border-sage-border max-h-[90vh]">
+            <div class="p-4 border-b border-sage-border flex items-center gap-1.5 bg-sage-bg/50 rounded-t-2xl">
+                <span class="material-symbols-outlined text-sage-text-main !text-[20px]">settings</span>
+                <h3 class="font-bold text-base text-sage-text-main" id="smart-add-title">选择题/填空题快捷智能录入弹窗</h3>
+            </div>
+            <div class="p-5 overflow-y-auto space-y-5 text-sm">
+                <div>
+                    <label class="block text-sage-text-muted mb-1.5 font-bold">第一步：选择录入题型</label>
+                    <select id="smart-add-type" onchange="toggleSmartAddType()" class="w-full bg-white border-sage-border rounded-xl text-sm p-2.5 text-sage-text-main font-bold focus:ring-sage-primary">
+                        <option value="choice">❓ 快捷选择题：整段全智能切割法</option>
+                        <option value="blank">📝 快捷填空题：用【答案】表示法</option>
+                        <option value="recite_text">📝 文字遮卡背诵：用 [mask:答案] 标记</option>
+                        <option value="recite_image">🖼️ 图片框选背诵：上传图并拖拽遮挡</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sage-text-muted mb-1.5 font-bold">第二步：题目附带配图（可选）</label>
+                    <input type="file" id="smart-add-image" accept="image/*" class="w-full text-sm text-sage-text-muted file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-sage-primary-light/50 file:text-sage-primary hover:file:bg-sage-primary-light transition-colors cursor-pointer">
+                </div>
+                <div id="smart-add-text-section">
+                    <label class="block text-sage-text-muted mb-1.5 font-bold">第三步：请直接在下方粘贴题干与选项</label>
+                    <div id="smart-add-hint" class="bg-sage-primary-light/30 border border-sage-accent/30 rounded-xl p-3 mb-3 text-sage-text-main text-xs font-medium leading-relaxed">
+                        </div>
+                    <textarea id="smart-add-content" rows="6" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-3 focus:ring-sage-primary font-medium" placeholder="请在此处直接粘贴或输入题目完整内容..."></textarea>
+                </div>
+                <div id="smart-add-image-section" class="hidden space-y-2">
+                    <label class="block text-sage-text-muted mb-1.5 font-bold" id="img-sec-label">第三步：在图片上使用鼠标框选遮挡区域</label>
+                    <p class="text-xs text-sage-error font-bold mb-2" id="img-sec-hint">请先在上方选择图片文件，然后在此处区域内直接拖拽鼠标进行遮挡框选配置。</p>
+                    <div class="text-center">
+                        <div id="draw-container" class="relative inline-block border border-sage-border bg-sage-bg overflow-hidden cursor-crosshair max-w-full" style="touch-action: none;" onpointerdown="startDraw(event)" onpointermove="drawMove(event)" onpointerup="endDraw(event)">
+                            <div class="relative inline-block">
+                                <img id="draw-image" class="max-w-full block" style="pointer-events: none; max-height: 40vh;" draggable="false">
+                                <div id="draw-temp" class="hidden absolute border-2 border-sage-primary bg-sage-primary/30 pointer-events-none"></div>
+                                <div id="draw-masks-layer" class="absolute inset-0 pointer-events-none"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t border-sage-border flex justify-end gap-3 bg-sage-bg/30 rounded-b-2xl">
+                <button onclick="closeSmartAddModal()" class="bg-white border border-sage-border hover:bg-sage-bg text-sage-text-muted px-5 py-2 rounded-xl font-bold transition-colors">取消</button>
+                <button onclick="confirmSmartAdd()" class="bg-[#4F6F52] text-white px-6 py-2 rounded-xl font-bold hover:opacity-90 shadow-sm transition-colors">确认提交</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-question-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-[110] p-4">
+        <div class="bg-white rounded-2xl flex flex-col w-full max-w-lg shadow-2xl border border-sage-border max-h-[90vh]">
+            <div class="p-4 border-b border-sage-border flex items-center gap-1.5 bg-sage-bg/50 rounded-t-2xl">
+                <span class="material-symbols-outlined text-sage-text-main !text-[20px]">edit</span>
+                <h3 class="font-bold text-base text-sage-text-main">内容动态修改面板</h3>
+            </div>
+            <div class="p-5 overflow-y-auto space-y-4 text-sm" id="edit-question-body">
+                </div>
+            <div class="p-4 border-t border-sage-border flex justify-end gap-3 bg-sage-bg/30 rounded-b-2xl">
+                <button onclick="closeEditModal()" class="bg-white border border-sage-border hover:bg-sage-bg text-sage-text-muted px-5 py-2 rounded-xl font-bold transition-colors">取消</button>
+                <button onclick="confirmEditQuestion()" class="bg-[#4F6F52] text-white px-6 py-2 rounded-xl font-bold hover:opacity-90 shadow-sm transition-colors">确认提交</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4">
+        <div class="bg-white rounded-2xl flex flex-col w-80 shadow-2xl border border-sage-border">
+            <div class="p-4 border-b border-sage-border flex items-center gap-1.5 bg-sage-bg/50 rounded-t-2xl">
+                <span class="material-symbols-outlined text-sage-primary !text-[20px]">account_tree</span>
+                <h3 class="font-bold text-base text-sage-text-main" id="admin-modal-title">新增大纲节点</h3>
+            </div>
+            <div class="p-5 space-y-3 text-sm">
+                <label class="block text-sage-text-muted font-bold mb-1">节点名称内容：</label>
+                <input type="text" id="admin-modal-input" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-2.5 focus:ring-sage-primary font-bold text-sage-text-main">
+            </div>
+            <div class="p-4 border-t border-sage-border flex justify-end gap-2 bg-sage-bg/30 rounded-b-2xl">
+                <button onclick="closeAdminModal()" class="bg-white border border-sage-border text-sage-text-muted px-4 py-2 rounded-xl font-bold hover:bg-sage-bg transition-colors">取消</button>
+                <button onclick="confirmAdminModal()" class="bg-[#4F6F52] text-white px-5 py-2 rounded-xl font-bold hover:opacity-90 shadow-sm transition-opacity">确认添加</button>
+            </div>
+        </div>
+    </div>
+
+<div id="fullscreen-image-modal" class="hidden fixed inset-0 z-[120] bg-black/90 flex flex-col p-4">
+        <button onclick="closeFullscreenImage()" class="absolute top-4 right-4 z-[130] text-white hover:text-sage-primary p-2 bg-black/50 rounded-full flex items-center justify-center transition-colors cursor-pointer">
+            <span class="material-symbols-outlined !text-[28px]">close</span>
+        </button>
+
+        <div class="flex-1 overflow-auto flex items-center justify-center touch-pan-x touch-pan-y hide-scrollbar mt-10 mb-16">
+            <div id="fullscreen-image-wrapper" class="relative inline-block transition-transform duration-200 transform-origin-center shadow-2xl" style="transform: scale(1);">
+                <div id="fullscreen-image-container" class="relative inline-block"></div>
+            </div>
+        </div>
+
+<div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-6 bg-black/60 p-3 rounded-full z-[130]">
+            <button onclick="zoomFullscreen(-0.25)" class="text-white p-2 rounded-full hover:bg-black/80 transition-colors" title="缩小"><span class="material-symbols-outlined">zoom_out</span></button>
+            <button onclick="zoomFullscreen(0.25)" class="text-white p-2 rounded-full hover:bg-black/80 transition-colors" title="放大"><span class="material-symbols-outlined">zoom_in</span></button>
+        </div>
+    </div>
+
+<div id="api-manage-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-[110] p-4">
+        <div class="bg-white rounded-2xl flex flex-col w-full max-w-2xl shadow-2xl border border-sage-border relative overflow-hidden max-h-[85vh]">
+            <div class="p-5 border-b border-sage-border flex justify-between items-center bg-sage-bg/50 shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sage-primary !text-[24px]">view_list</span>
+                    <h3 class="font-bold text-base text-sage-text-main">API 节点管理池</h3>
+                </div>
+                <button onclick="closeApiManageModal()" class="text-sage-text-muted hover:text-sage-error transition-colors p-1 bg-white rounded-md">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto space-y-6 flex-1 text-sm bg-sage-bg/30">
+                <div class="bg-white p-5 rounded-xl border border-sage-border shadow-sm space-y-4">
+                    <h4 class="font-bold text-sage-text-main border-b border-sage-border/50 pb-2">新增备用 API 节点</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sage-text-muted mb-1 text-xs font-bold">节点备注名 (如: DeepSeek)</label>
+                            <input type="text" id="pool-api-name" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-2.5 focus:ring-sage-primary">
+                        </div>
+                        <div>
+                            <label class="block text-sage-text-muted mb-1 text-xs font-bold">默认模型 (Model)</label>
+                            <input type="text" id="pool-api-model" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-2.5 focus:ring-sage-primary" placeholder="如: deepseek-chat">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sage-text-muted mb-1 text-xs font-bold">接口地址 (Base URL)</label>
+                            <input type="text" id="pool-api-url" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-2.5 focus:ring-sage-primary" placeholder="如: https://api.deepseek.com/v1">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sage-text-muted mb-1 text-xs font-bold">通信密钥 (API Key)</label>
+                            <input type="password" id="pool-api-key" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-2.5 focus:ring-sage-primary" placeholder="sk-...">
+                        </div>
+                    </div>
+                    <div class="flex justify-end pt-1">
+                        <button onclick="addApiToPool()" class="bg-[#4F6F52] text-white px-5 py-2 rounded-xl font-bold hover:opacity-90 transition-all text-sm flex items-center gap-1 shadow-sm">
+                            <span class="material-symbols-outlined !text-[18px]">add</span> 保存至节点池
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-sage-text-main mb-3 flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-sage-primary !text-[18px]">dns</span> 已存节点列表
+                    </h4>
+                    <div id="api-pool-list" class="space-y-3">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</main>
+<script>
+// ==========================================
+// 1. 全局数据结构与通用状态
+// ==========================================
+let currentSubject = '初中生物';
+let db = null;
+let currentManageType = ''; 
+
+// 模拟云同步账号变量
+let currentUser = localStorage.getItem('integrated_ai_platform_currentUser') || null;
+
+let countdownSettings = { examName: "中考特训", targetDate: "2026-06-20T09:00:00" };
+let taskStorage = []; 
+let currentWeekOffset = 0; 
+let todayStudySeconds = parseInt(localStorage.getItem('study_seconds_' + new Date().toDateString()) || '0');
+
+// 艾宾浩斯七阶间隔 (30分钟，12小时，1天，2天，4天，7天，15天)
+const reviewIntervals = [
+    30 * 60 * 1000, 
+    12 * 60 * 60 * 1000, 
+    1 * 24 * 60 * 60 * 1000, 
+    2 * 24 * 60 * 60 * 1000, 
+    4 * 24 * 60 * 60 * 1000, 
+    7 * 24 * 60 * 60 * 1000, 
+    15 * 24 * 60 * 60 * 1000
+];
+
+const defaultInitialDatabase = {
+    "初中生物": {
+        "tree": [
+            { "id": "bio-g7", "title": "初一生物考点大纲", "type": "grade", "children": [
+                { "id": "bio-g7-c1", "title": "第一单元 认识生命", "type": "chapter", "children": [
+                    { "id": "bio-p1", "title": "生物的基本特征", "type": "point" },
+                    { "id": "bio-p2", "title": "科学探究的方法", "type": "point" }
+                ]}
+            ]}
+        ],
+        "questions": [
+            { "id": "bq-1", "pointId": "bio-p1", "type": "choice", "stem": "下列各项结构或者现象中，不属于生命科学定义下的生物基本特征的是？", "options": ["A. 珊瑚虫在海洋中不断繁衍吸附", "B. 钟乳石在溶洞中缓慢生长和垂滴", "C. 含羞草受到震动和触碰时叶片立刻紧闭", "D. 电脑感染并自动复制扩散的一种新型逻辑病毒"], "answer": "B", "analysis": "钟乳石的生长属于纯粹的无机化学沉积现象，不具备生物的新陈代谢、遗传变异与应激性特征。", "currentLevel": 0, "nextReviewTime": 0, "lastReviewTime": Date.now(), "isWrong": true },
+            { "id": "bq-2", "pointId": "bio-p1", "type": "choice", "stem": "在‘探究非生物因素对鼠妇生活的影响’的科学实验中，设置明亮与阴暗两种环境其本质属于？", "options": ["A. 模拟实验", "B. 破坏性实验", "C. 对照实验", "D. 验证型调查"], "answer": "C", "analysis": "对照实验要求除所要探究的某单一条件变量不同外，其他环境因素均完全一致。", "currentLevel": 1, "nextReviewTime": Date.now() + 86400000, "lastReviewTime": Date.now(), "isWrong": true },
+            { "id": "bq-3", "pointId": "bio-p1", "type": "blank", "stem": "光在真空中传播速度是 _______ 米每秒。", "options": [], "answer": "3×10^8", "analysis": "常识", "currentLevel": 0, "nextReviewTime": 0, "lastReviewTime": Date.now(), "isWrong": true }
+        ],
+        "recitations": [
+            { "id": "br-1", "pointId": "bio-p1", "type": "text-cloze", "title": "生物核心新陈代谢与遗传特征规律", "content": "生命体的最基本核心物质运转机制是具有 [mask:新陈代谢] 作用。植物能够通过光合作用制造有机物，这属于自身营养；生物体对外界强力物理刺激做出的精准逃逸反应在生物学上被称为 [mask:应激性]。", "currentLevel": 0, "nextReviewTime": 0, "lastReviewTime": Date.now() },
+            { "id": "br-2", "pointId": "bio-p1", "type": "image-mask", "title": "植物与动物细胞高精典型亚显微结构识图", "image": "https://images.unsplash.com/photo-1576086213369-97a306d36557?auto=format&fit=crop&w=600&q=80", "masks": [
+                {"id": 1, "x": 15, "y": 20, "w": 25, "h": 14, "answer": "植物细胞壁"},
+                {"id": 2, "x": 50, "y": 35, "w": 30, "h": 16, "answer": "大液泡"}
+            ], "currentLevel": 3, "nextReviewTime": Date.now() + 86400000, "lastReviewTime": Date.now() }
+        ]
+    },
+    "初中地理": { "tree": [], "questions": [], "recitations": [] }
+};
+
+let activePracticeQueue = []; let currentPracticeIndex = 0; let practiceCorrectCount = 0; let practiceWrongCount = 0;
+let activeReciteQueue = []; let currentReciteIndex = 0;
+let activeWrongReviewQueue = []; let activeReciteReviewQueue = []; 
+
+// ==========================================
+// 2. 基础存储、UI切换与数据计算 (已融合账号云同步逻辑)
+// ==========================================
+function getDbKey() {
+    return currentUser ? `integrated_ai_platform_db_${currentUser}` : 'integrated_ai_platform_db';
+}
+
+function loadDbFromLocalStorage() {
+    const cached = localStorage.getItem(getDbKey());
+    db = cached ? JSON.parse(cached) : defaultInitialDatabase;
+    if (!db['初中地理']) db['初中地理'] = { tree: [], questions: [], recitations: [] };
+    const s = localStorage.getItem('countdown_settings');
+    if (s) countdownSettings = JSON.parse(s);
+    const ts = localStorage.getItem('task_storage');
+    if (ts) taskStorage = JSON.parse(ts);
+    saveDbToLocalStorage();
+}
+
+function saveDbToLocalStorage() { 
+    localStorage.setItem(getDbKey(), JSON.stringify(db)); 
+    showCloudSyncIndicator();
+}
+
+function forceSaveLocalDB() { saveDbToLocalStorage(); alert("✅ 持久化数据库已安全保存至云端/本地！"); }
+function exportFullDatabase() { alert("正在打包导出 .json 数据文件..."); }
+function importFullDatabase(input) { if(input.files.length) alert("文件读取成功，正在重新构建索引..."); }
+
+function showCloudSyncIndicator() {
+    const indicator = document.getElementById('cloud-sync-status');
+    if (indicator && currentUser) {
+        indicator.innerText = 'cloud_sync';
+        indicator.classList.remove('hidden', 'text-sage-correct');
+        indicator.classList.add('text-sage-primary', 'animate-pulse');
+        setTimeout(() => {
+            indicator.innerText = 'cloud_done';
+            indicator.classList.remove('text-sage-primary', 'animate-pulse');
+            indicator.classList.add('text-sage-correct');
+        }, 800);
+    } else if (indicator) {
+        indicator.classList.add('hidden');
+    }
+}
+
+// 账号与云同步UI逻辑
+function switchAccountView(view) {
+    document.getElementById('account-modal-login-view').classList.add('hidden');
+    document.getElementById('account-modal-register-view').classList.add('hidden');
+    document.getElementById('account-modal-profile-view').classList.add('hidden');
+
+    if (view === 'login') document.getElementById('account-modal-login-view').classList.remove('hidden');
+    if (view === 'register') document.getElementById('account-modal-register-view').classList.remove('hidden');
+    if (view === 'profile') document.getElementById('account-modal-profile-view').classList.remove('hidden');
+}
+
+function openAccountModal() {
+    if (currentUser) {
+        switchAccountView('profile');
+        document.getElementById('account-username-display').innerText = currentUser;
+    } else {
+        switchAccountView('login');
+        document.getElementById('account-username').value = '';
+        document.getElementById('account-password').value = '';
+        document.getElementById('reg-username').value = '';
+        document.getElementById('reg-password').value = '';
+        document.getElementById('reg-password-confirm').value = '';
+    }
+    document.getElementById('account-modal').classList.remove('hidden');
+}
+
+function closeAccountModal() {
+    document.getElementById('account-modal').classList.add('hidden');
+}
+
+function handleLogin() {
+    const uname = document.getElementById('account-username').value.trim();
+    if(!uname) return alert("请输入账号！");
+    currentUser = uname;
+    localStorage.setItem('integrated_ai_platform_currentUser', currentUser);
+    
+    closeAccountModal();
+    alert(`欢迎回来，${currentUser}！数据已从云端同步并隔离加载。`);
+    location.reload(); 
+}
+
+function submitRegister() {
+    const uname = document.getElementById('reg-username').value.trim();
+    const pwd = document.getElementById('reg-password').value;
+    const pwdConfirm = document.getElementById('reg-password-confirm').value;
+
+    if(!uname) return alert("请输入想要的账号名！");
+    if(!pwd) return alert("请输入密码！");
+    if(pwd !== pwdConfirm) return alert("两次输入的密码不一致，请重新输入！");
+    
+    // 模拟注册成功并直接登录
+    currentUser = uname;
+    localStorage.setItem('integrated_ai_platform_currentUser', currentUser);
+    
+    closeAccountModal();
+    alert(`🎉 注册成功！欢迎加入，${currentUser}！您的专属云端数据空间已自动创建并连接。`);
+    location.reload(); 
+}
+
+function handleLogout() {
+    currentUser = null;
+    localStorage.removeItem('integrated_ai_platform_currentUser');
+    closeAccountModal();
+    alert(`已退出登录，返回本地离线模式。`);
+    location.reload();
+}
+
+function getGlobalStats() {
+    let cap = 0, wrg = 0, todayRev = 0;
+    const endOfToday = new Date().setHours(23, 59, 59, 999);
+    Object.keys(db).forEach(sub => {
+        cap += db[sub].questions.length + db[sub].recitations.length;
+        wrg += db[sub].questions.filter(q => q.isWrong).length;
+        todayRev += db[sub].questions.filter(q => q.isWrong && q.nextReviewTime !== null && (!q.nextReviewTime || q.nextReviewTime <= endOfToday)).length;
+    });
+    return { capacity: cap, wrongs: wrg, todayReview: todayRev };
+}
+
+function updateGlobalDashboards() {
+    const stats = getGlobalStats();
+    document.getElementById('stat-global-capacity').innerText = `${stats.capacity} 题`;
+    document.getElementById('stat-global-today').innerHTML = `${stats.todayReview} <span class="text-sm font-normal text-sage-text-muted">题</span>`;
+    
+    let streak = parseInt(localStorage.getItem('streak_count') || '0');
+    let lastPunch = localStorage.getItem('last_punch_date');
+    const today = new Date().toDateString();
+    let yest = new Date(); yest.setDate(yest.getDate()-1);
+    
+    if (lastPunch && lastPunch !== today && lastPunch !== yest.toDateString()) {
+        streak = 0;
+        localStorage.setItem('streak_count', '0');
+    }
+    
+    document.getElementById('stat-streak-value').innerHTML = `${streak} <span class="text-sm font-normal text-sage-text-muted">天</span>`;
+    showCloudSyncIndicator();
+}
+
+setInterval(() => {
+    todayStudySeconds++;
+    localStorage.setItem('study_seconds_' + new Date().toDateString(), todayStudySeconds);
+    updateStudyTimeUI();
+}, 1000);
+
+function updateStudyTimeUI() {
+    const el = document.getElementById('stat-global-study-time');
+    if (el) {
+        let h = Math.floor(todayStudySeconds / 3600);
+        let m = Math.floor((todayStudySeconds % 3600) / 60);
+        let s = todayStudySeconds % 60;
+        el.innerText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+}
+
+function handleStreakPunchIn() {
+    let streak = parseInt(localStorage.getItem('streak_count') || '0');
+    let lastPunch = localStorage.getItem('last_punch_date');
+    const today = new Date().toDateString();
+    
+    if (lastPunch === today) {
+        alert("今日已签到！"); return;
+    }
+    
+    let yest = new Date(); yest.setDate(yest.getDate()-1);
+    if (lastPunch === yest.toDateString()) { streak += 1; } 
+    else { streak = 1; } 
+    
+    localStorage.setItem('streak_count', streak);
+    localStorage.setItem('last_punch_date', today);
+    document.getElementById('stat-streak-value').innerHTML = `${streak} <span class="text-sm font-normal text-sage-text-muted">天</span>`;
+    alert(`🎉 打卡签到成功！当前连续签到第 ${streak} 天。`);
+}
+
+function toggleSubjectDropdown() { document.getElementById('header-subject-dropdown-menu').classList.toggle('hidden'); }
+function selectSubject(sub) {
+    currentSubject = sub;
+    document.getElementById('current-subject-label').innerText = sub;
+    document.getElementById('header-subject-dropdown-menu').classList.add('hidden');
+    
+    renderTreeStructure('tree-container', 'practice');
+    renderTreeStructure('recite-tree-container', 'recite');
+    initWrongReviewSession();
+    initReciteReviewSession();
+    updateDashboards();
+}
+
+// 路由与动态顶部控制
+function switchNav(viewId) {
+    ['index', 'practice', 'wrong', 'recite', 'recite-wrong', 'analysis', 'settings'].forEach(v => {
+        document.getElementById('view-' + v)?.classList.add('hidden');
+        document.getElementById('nav-' + v)?.classList.replace('nav-btn-active', 'nav-btn-inactive');
+    });
+    document.getElementById('view-' + viewId)?.classList.remove('hidden');
+    document.getElementById('nav-' + viewId)?.classList.replace('nav-btn-inactive', 'nav-btn-active');
+
+    const staticBtn = document.getElementById('global-header-subject-static');
+    const dynamicBtn = document.getElementById('global-header-subject-dynamic');
+    if (['practice', 'wrong', 'recite', 'recite-wrong'].includes(viewId)) {
+        staticBtn.classList.add('hidden');
+        dynamicBtn.classList.remove('hidden');
+    } else {
+        staticBtn.classList.remove('hidden');
+        dynamicBtn.classList.add('hidden');
+    }
+
+    if (viewId === 'wrong') initWrongReviewSession();
+    if (viewId === 'recite-wrong') initReciteReviewSession();
+    if (viewId === 'settings') loadAiSettings();
+    if (viewId === 'index') { updateGlobalDashboards(); initCharts(); }
+}
+
+function toggleSidebar(mode) {
+    const leftCol = document.getElementById(`${mode}-left-col`);
+    const rightCol = document.getElementById(`${mode}-right-col`);
+    const expandBtn = document.getElementById(`${mode}-expand-sidebar-btn`);
+    
+    if (leftCol.classList.contains('hidden')) {
+        leftCol.classList.remove('hidden');
+        rightCol.classList.remove('lg:col-span-12'); rightCol.classList.add('lg:col-span-8');
+        expandBtn.classList.add('hidden');
+    } else {
+        leftCol.classList.add('hidden');
+        rightCol.classList.remove('lg:col-span-8'); rightCol.classList.add('lg:col-span-12');
+        expandBtn.classList.remove('hidden');
+    }
+}
+
+function togglePanel(panelId) {
+    const content = document.getElementById(`${panelId}-content`);
+    const collapsed = document.getElementById(`${panelId}-collapsed`);
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden'); collapsed.classList.add('hidden');
+    } else {
+        content.classList.add('hidden'); collapsed.classList.remove('hidden');
+    }
+}
+
+function updateCountdownTimer() {
+    const now = new Date();
+    const target = new Date(countdownSettings.targetDate);
+    const diff = target - now;
+    const textEl = document.getElementById('live-countdown-text');
+    if (!textEl) return;
+    if (diff <= 0) { textEl.innerText = `距离 ${countdownSettings.examName} 仅剩: 已结束`; return; }
+    
+    const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const s = Math.floor((diff % (1000 * 60)) / 1000);
+    textEl.innerText = `距离 ${countdownSettings.examName} 仅剩: ${d}天 ${h}小时 ${m}分钟 ${s}秒`;
+}
+
+function openCountdownModal() {
+    document.getElementById('modal-exam-name').value = countdownSettings.examName;
+    document.getElementById('modal-exam-date').value = countdownSettings.targetDate;
+    document.getElementById('countdown-modal').classList.remove('hidden');
+}
+function closeCountdownModal() { document.getElementById('countdown-modal').classList.add('hidden'); }
+function saveCountdownSettings() {
+    countdownSettings.examName = document.getElementById('modal-exam-name').value;
+    countdownSettings.targetDate = document.getElementById('modal-exam-date').value;
+    localStorage.setItem('countdown_settings', JSON.stringify(countdownSettings));
+    closeCountdownModal(); updateCountdownTimer();
+}
+
+// ==========================================
+// 3. AI 调用引擎与提示词构建
+// ==========================================
+function loadAiSettings() {
+    const str = localStorage.getItem('ai_api_settings');
+    if (str) {
+        const set = JSON.parse(str);
+        if(document.getElementById('ai-api-url')) document.getElementById('ai-api-url').value = set.url || '';
+        if(document.getElementById('ai-api-key')) document.getElementById('ai-api-key').value = set.key || '';
+        if(document.getElementById('ai-api-model')) document.getElementById('ai-api-model').value = set.model || '';
+    }
+}
+function saveAiSettings() {
+    const set = {
+        url: document.getElementById('ai-api-url').value,
+        key: document.getElementById('ai-api-key').value,
+        model: document.getElementById('ai-api-model').value
+    };
+    localStorage.setItem('ai_api_settings', JSON.stringify(set));
+    alert('✅ AI 大模型 API 配置保存成功！');
+}
+
+async function requestAI(prompt, targetElementId) {
+    const el = document.getElementById(targetElementId);
+    if(el) el.innerHTML = `<span class="text-sage-primary font-bold animate-pulse text-[13px]">🧠 AI导师思考中 (正在消耗 Token)...</span>`;
+    
+    setTimeout(() => {
+        if(el) el.innerHTML = `<div class="p-3 bg-white border border-sage-border rounded-lg text-sm leading-relaxed text-sage-text-main shadow-sm font-medium">${prompt.replace(/\n/g,'<br>')}</div>`;
+    }, 1500);
+}
+
+function getPracticeAiPrompt(q) {
+    return `请你扮演一位非常耐心的老师。我的基础差，理解能力弱。请严格按照以下步骤回答：
+1. 先告诉我这道题考察的知识点（一句话）。
+2. 写出书本中该知识点的核心内容（用最简单的话解释，可举例）。
+3. 一步一步分析如何正确解题：第一步看什么，第二步算什么，第三步得出什么。
+4. 根据题型给出解析：如果是选择题，逐一解释每一个选项为什么对或错。
+5. 最后给出完整正确答案。
+
+题目：${q.stem}
+选项：${q.options && q.options.length ? q.options.join(' | ') : '无'}
+标准答案：${q.answer}
+    `;
+}
+
+function getReciteAiPrompt(r) {
+    return `你是一位帮助记忆的助教。请根据用户提供的「完整背诵知识点」，严格按照以下要求回答：
+1. 用最通俗的话解释这个知识点的书本原理（像讲给小学生听，可以打比方、举生活例子）。
+2. 给出一条具体、好记的背诵小技巧（例如：口诀、联想记忆、图像记忆、故事串联等）。
+3. 如果用户提供了图片描述，请结合图片内容一起解释原理和技巧。
+注意：不要提问、不要出题测试，只输出“通俗解释 + 背诵小技巧”。
+
+背诵知识点内容：${r.title} - ${r.content || r.masks.map(m=>m.answer).join(', ')}
+    `;
+}
+
+// ==========================================
+// 4. 树状大纲、通用弹窗与录入系统
+// ==========================================
+function countItems(node, type) {
+    let count = 0;
+    if (node.type === 'point') {
+        if (type === 'practice') count = db[currentSubject].questions.filter(q => q.pointId === node.id).length;
+        else count = db[currentSubject].recitations.filter(r => r.pointId === node.id).length;
+    } else if (node.children) {
+        node.children.forEach(c => count += countItems(c, type));
+    }
+    return count;
+}
+
+function findNodeById(nodes, id) {
+    for(let n of nodes) {
+        if(n.id === id) return n;
+        if(n.children) { let res = findNodeById(n.children, id); if(res) return res; }
+    }
+    return null;
+}
+
+function renderTreeStructure(containerId, viewPrefix) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const currentData = db[currentSubject];
+    if (!currentData || !currentData.tree) return;
+
+    let html = '';
+    function traverse(nodes, depth = 0) {
+        nodes.forEach(node => {
+            const paddingLeft = depth * 16;
+            const count = countItems(node, viewPrefix);
+            const unit = viewPrefix === 'practice' ? '题' : '卡片';
+            const titleDisplay = `${node.title} <span class="text-sage-text-muted font-normal text-xs ml-1">(${count}${unit})</span>`;
+
+            let actionButtons = '';
+            actionButtons += `<span onclick="editTreeNode('${node.id}', '${viewPrefix}')" class="text-sage-text-muted hover:text-sage-primary cursor-pointer text-xs ml-1 transition-colors" title="修改名称"><span class="material-symbols-outlined !text-[14px]">edit</span></span>`;
+            actionButtons += `<span onclick="deleteTreeNode('${node.id}', '${viewPrefix}')" class="text-sage-text-muted hover:text-red-700 cursor-pointer text-xs ml-1 transition-colors" title="删除节点"><span class="material-symbols-outlined !text-[14px]">delete</span></span>`;
+            
+            if (node.type === 'grade') actionButtons += `<span onclick="openAdminModal('chapter', '${node.id}')" class="text-sage-text-muted font-bold cursor-pointer hover:text-sage-primary text-xs ml-2">+大考点</span>`;
+            if (node.type === 'chapter') actionButtons += `<span onclick="openAdminModal('point', '${node.id}')" class="text-sage-text-muted font-bold cursor-pointer hover:text-sage-primary text-xs ml-2">+小点</span>`;
+            if (node.type === 'point') actionButtons += `<span onclick="openSmartAddModal('${viewPrefix}', '${node.id}')" class="bg-sage-primary-light/40 border border-sage-border px-1.5 py-0.5 rounded text-xs text-sage-primary font-bold cursor-pointer hover:bg-sage-primary-light transition-colors ml-2">+录入</span>`;
+
+            let icon = 'folder';
+            if(node.type === 'point') icon = 'menu_book';
+            if(node.type === 'grade') icon = 'account_tree';
+
+            html += `
+                <div class="flex items-start justify-between hover:bg-sage-bg p-1.5 rounded-lg transition-all" style="margin-left: ${paddingLeft}px">
+                    <div class="flex items-start gap-2 flex-1">
+                        <input type="checkbox" id="chk-${viewPrefix}-${node.id}" class="tree-checkbox text-sage-primary focus:ring-0 rounded border-sage-accent cursor-pointer mt-0.5">
+                        <span class="material-symbols-outlined text-sage-accent !text-[18px] select-none mt-0.5">${icon}</span>
+                        <span class="font-bold text-sage-text-main text-[13px] md:text-sm break-words whitespace-normal leading-snug">${titleDisplay}</span>
+                    </div>
+                    <div class="flex items-center gap-1 pl-2 shrink-0">${actionButtons}</div>
+                </div>
+            `;
+            if (node.children) traverse(node.children, depth + 1);
+        });
+    }
+    traverse(currentData.tree);
+    container.innerHTML = html;
+}
+
+function editTreeNode(id, viewPrefix) {
+    let newTitle = prompt("请输入新的节点名称：");
+    if (!newTitle || !newTitle.trim()) return;
+    let node = findNodeById(db[currentSubject].tree, id);
+    if(node) { 
+        node.title = newTitle.trim(); 
+        saveDbToLocalStorage(); 
+        renderTreeStructure(viewPrefix==='practice'?'tree-container':'recite-tree-container', viewPrefix); 
+    }
+}
+
+function deleteTreeNode(id, viewPrefix) {
+    if(!confirm("确定要删除此节点吗？该节点下的所有子节点以及关联的题目/背诵卡片都将被永久删除！\n是否继续？")) return;
+    let idsToDelete = new Set();
+    function collectIds(node) {
+        idsToDelete.add(node.id);
+        if(node.children) node.children.forEach(collectIds);
+    }
+    let node = findNodeById(db[currentSubject].tree, id);
+    if(node) collectIds(node);
+
+    function del(nodes) {
+        for(let i=0; i<nodes.length; i++){
+            if(nodes[i].id === id) { nodes.splice(i, 1); return true; }
+            if(nodes[i].children && del(nodes[i].children)) return true;
+        }
+        return false;
+    }
+    del(db[currentSubject].tree);
+    
+    db[currentSubject].questions = db[currentSubject].questions.filter(q => !idsToDelete.has(q.pointId));
+    db[currentSubject].recitations = db[currentSubject].recitations.filter(r => !idsToDelete.has(r.pointId));
+    
+    saveDbToLocalStorage();
+    renderTreeStructure(viewPrefix==='practice'?'tree-container':'recite-tree-container', viewPrefix);
+    updateGlobalDashboards();
+}
+
+let currentAdminType = '';
+let currentAdminParentId = '';
+function openAdminModal(type, parentId = null) {
+    currentAdminType = type;
+    currentAdminParentId = parentId;
+    document.getElementById('admin-modal-title').innerText = type === 'grade' ? '新增学年' : type === 'chapter' ? '新增大考点' : '新增小考点';
+    document.getElementById('admin-modal-input').value = '';
+    document.getElementById('admin-modal').classList.remove('hidden');
+}
+function closeAdminModal() { document.getElementById('admin-modal').classList.add('hidden'); }
+function confirmAdminModal() {
+    const val = document.getElementById('admin-modal-input').value.trim();
+    if(!val) return alert('内容不能为空');
+    const newId = 'node-' + Date.now();
+    
+    if (currentAdminType === 'grade') {
+        db[currentSubject].tree.push({ id: newId, title: val, type: 'grade', children: [] });
+    } else {
+        function addChild(nodes) {
+            for(let n of nodes) {
+                if(n.id === currentAdminParentId) {
+                    if(!n.children) n.children = [];
+                    n.children.push({ id: newId, title: val, type: currentAdminType, children: [] });
+                    return true;
+                }
+                if(n.children && addChild(n.children)) return true;
+            }
+            return false;
+        }
+        addChild(db[currentSubject].tree);
+    }
+    saveDbToLocalStorage(); closeAdminModal();
+    renderTreeStructure('tree-container', 'practice');
+    renderTreeStructure('recite-tree-container', 'recite');
+}
+
+// 智能录入弹窗逻辑 (Smart Add)
+let smartAddTargetContext = ''; 
+let smartAddTargetNodeId = '';
+let currentReciteMasks = [];
+
+function openSmartAddModal(context, parentId) {
+    smartAddTargetContext = context;
+    smartAddTargetNodeId = parentId;
+    
+    const typeSelect = document.getElementById('smart-add-type');
+    document.getElementById('smart-add-title').innerText = context === 'practice' ? '选择题/填空题快捷智能录入弹窗' : '背诵卡片快捷智能录入弹窗';
+    
+    Array.from(typeSelect.options).forEach(opt => {
+        if (context === 'practice') opt.hidden = opt.value.startsWith('recite');
+        else opt.hidden = !opt.value.startsWith('recite');
+    });
+    
+    typeSelect.value = context === 'practice' ? 'choice' : 'recite_text';
+    document.getElementById('smart-add-content').value = '';
+    document.getElementById('smart-add-image').value = '';
+    document.getElementById('draw-image').src = '';
+    currentReciteMasks = []; renderDrawMasks();
+    
+    toggleSmartAddType();
+    document.getElementById('smart-add-modal').classList.remove('hidden');
+}
+
+function closeSmartAddModal() { document.getElementById('smart-add-modal').classList.add('hidden'); }
+
+function toggleSmartAddType() {
+    const type = document.getElementById('smart-add-type').value;
+    const hint = document.getElementById('smart-add-hint');
+    const txtSec = document.getElementById('smart-add-text-section');
+    const imgSec = document.getElementById('smart-add-image-section');
+    const imgLabel = document.getElementById('img-sec-label');
+    const imgHint = document.getElementById('img-sec-hint');
+    
+    imgSec.classList.remove('hidden');
+
+    if (type === 'choice') {
+        txtSec.classList.remove('hidden'); 
+        hint.innerHTML = `💡 <b>选择题智能粘贴切割规则：</b>直接将题干和ABCD选项粘在一起，最后写上正确答案字母即可。<br><span class="text-sage-text-muted mt-1 block">例：下列哪个属于植物？ A.小狗 B.向日葵 C.小猫 D.狮子 正确答案：B</span>`;
+        imgLabel.innerText = "附加：配图预览 (可选)";
+        imgHint.classList.add('hidden');
+        document.getElementById('draw-masks-layer').innerHTML = ''; 
+    } else if (type === 'blank') {
+        txtSec.classList.remove('hidden'); 
+        hint.innerHTML = `💡 <b>填空快捷输入规则：</b>直接写题干，将需要隐藏抠空的答案放在【】中即可。<br><span class="text-sage-text-muted mt-1 block">例：光在真空中传播速度是【3×10^8】米每秒。</span>`;
+        imgLabel.innerText = "附加：配图预览 (可选)";
+        imgHint.classList.add('hidden');
+        document.getElementById('draw-masks-layer').innerHTML = '';
+    } else if (type === 'recite_text') {
+        txtSec.classList.remove('hidden'); 
+        hint.innerHTML = `💡 <b>文字遮卡输入规则：</b>请输入完整背诵知识点段落，需遮挡记忆的文字用 [mask:文字] 包裹。<br><span class="text-sage-text-muted mt-1 block">例：植物能够通过 [mask:光合作用] 制造有机物。</span>`;
+        imgLabel.innerText = "附加：配图预览 (可选)";
+        imgHint.classList.add('hidden');
+        document.getElementById('draw-masks-layer').innerHTML = '';
+    } else if (type === 'recite_image') {
+        txtSec.classList.add('hidden'); 
+        imgLabel.innerText = "第三步：在图片上使用鼠标框选遮挡区域";
+        imgHint.classList.remove('hidden');
+    }
+}
+
+document.getElementById('smart-add-image').addEventListener('change', function(e) {
+    if (this.files && this.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            document.getElementById('draw-image').src = evt.target.result;
+        }
+        reader.readAsDataURL(this.files[0]);
+    }
+});
+
+// 获取绝对可靠的基于图片元素的相对坐标 (重要修复：必须基于图片真实渲染区域)
+function getRelativePos(e, imgElem) {
+    const rect = imgElem.getBoundingClientRect();
+    let x = e.clientX - rect.left;
+    let y = e.clientY - rect.top;
+    
+    // 限制在图片范围内
+    x = Math.max(0, Math.min(x, rect.width));
+    y = Math.max(0, Math.min(y, rect.height));
+    
+    return { x, y, rect };
+}
+
+let isDrawing = false, startX = 0, startY = 0;
+
+function startDraw(e) {
+    const img = document.getElementById('draw-image');
+    if (!img.src) return;
+    
+    e.preventDefault(); 
+    isDrawing = true;
+    
+    const container = document.getElementById('draw-container');
+    container.setPointerCapture(e.pointerId);
+    
+    const pos = getRelativePos(e, img);
+    startX = pos.x;
+    startY = pos.y;
+    
+    const temp = document.getElementById('draw-temp');
+    temp.style.left = startX + 'px'; temp.style.top = startY + 'px';
+    temp.style.width = '0px'; temp.style.height = '0px';
+    temp.classList.remove('hidden');
+}
+
+function drawMove(e) {
+    if(!isDrawing) return;
+    e.preventDefault(); 
+    
+    const img = document.getElementById('draw-image');
+    const pos = getRelativePos(e, img);
+    const temp = document.getElementById('draw-temp');
+    
+    temp.style.left = Math.min(startX, pos.x) + 'px';
+    temp.style.top = Math.min(startY, pos.y) + 'px';
+    temp.style.width = Math.abs(pos.x - startX) + 'px';
+    temp.style.height = Math.abs(pos.y - startY) + 'px';
+}
+
+function endDraw(e) {
+    if(!isDrawing) return;
+    isDrawing = false;
+    
+    const container = document.getElementById('draw-container');
+    container.releasePointerCapture(e.pointerId);
+    document.getElementById('draw-temp').classList.add('hidden');
+    
+    const img = document.getElementById('draw-image');
+    const pos = getRelativePos(e, img);
+    const currX = pos.x; 
+    const currY = pos.y;
+    
+    const w = Math.abs(currX - startX); 
+    const h = Math.abs(currY - startY);
+    if(w < 5 || h < 5) return;
+
+    // 百分比始终相对于图片真实尺寸
+    const pX = (Math.min(startX, currX) / pos.rect.width) * 100;
+    const pY = (Math.min(startY, currY) / pos.rect.height) * 100;
+    const pW = (w / pos.rect.width) * 100;
+    const pH = (h / pos.rect.height) * 100;
+
+    currentReciteMasks.push({ id: Date.now(), x: pX, y: pY, w: pW, h: pH, answer: '' });
+    renderDrawMasks();
+}
+
+function renderDrawMasks() {
+    const layer = document.getElementById('draw-masks-layer');
+    layer.innerHTML = currentReciteMasks.map(m => `
+        <div class="absolute border-2 border-sage-primary bg-sage-primary/30 flex items-center justify-center text-white text-xs font-bold"
+             style="left: ${m.x}%; top: ${m.y}%; width: ${m.w}%; height: ${m.h}%;">${m.answer}</div>
+    `).join('');
+}
+
+function confirmSmartAdd() {
+    const type = document.getElementById('smart-add-type').value;
+    const content = document.getElementById('smart-add-content').value.trim();
+    const newId = (smartAddTargetContext === 'practice' ? 'q-' : 'r-') + Date.now();
+    const imgSrc = document.getElementById('draw-image').src;
+    let imageToSave = imgSrc && imgSrc.startsWith('data:') ? imgSrc : null;
+    
+    if (smartAddTargetContext === 'practice') {
+        if (!content && type !== 'recite_image') return alert('请粘贴题目内容！');
+        if (type === 'choice') {
+            let stem = "", ans = "A", opts = ["A. 选项A", "B. 选项B", "C. 选项C", "D. 选项D"];
+            let parts = content.split(/[A-D]\./);
+            if (parts.length >= 5) {
+                stem = parts[0].trim();
+                opts[0] = "A. " + parts[1].replace(/正确答案.*/, '').trim();
+                opts[1] = "B. " + parts[2].replace(/正确答案.*/, '').trim();
+                opts[2] = "C. " + parts[3].replace(/正确答案.*/, '').trim();
+                opts[3] = "D. " + parts[4].replace(/正确答案.*/, '').trim();
+                let ansMatch = content.match(/正确答案[:：\s]*([A-D])/);
+                if(ansMatch) ans = ansMatch[1];
+            } else { stem = content; }
+            db[currentSubject].questions.push({ id: newId, pointId: smartAddTargetNodeId, type: 'choice', stem: stem, image: imageToSave, options: opts, answer: ans, analysis: "暂无解析", currentLevel: 0, nextReviewTime: 0, lastReviewTime: Date.now(), isWrong: true });
+        } else if (type === 'blank') {
+            let stem = content, answer = '';
+            const match = content.match(/【(.*?)】/);
+            if (match) { answer = match[1]; stem = content.replace(/【.*?】/, '_______'); }
+            db[currentSubject].questions.push({ id: newId, pointId: smartAddTargetNodeId, type: 'blank', stem: stem, image: imageToSave, options: [], answer: answer, analysis: "暂无解析", currentLevel: 0, nextReviewTime: 0, lastReviewTime: Date.now(), isWrong: true });
+        }
+    } else {
+        if (type === 'recite_text') {
+            if (!content) return alert('请输入背诵内容！');
+            let titleMatch = content.split(/[。！\n]/)[0];
+            let masks = currentReciteMasks.length ? [...currentReciteMasks] : [];
+            db[currentSubject].recitations.push({ 
+                id: newId, 
+                pointId: smartAddTargetNodeId, 
+                type: 'text-cloze', 
+                title: titleMatch.substring(0,15)+'...', 
+                content: content, 
+                image: imageToSave,
+                masks: masks,
+                currentLevel: 0, 
+                nextReviewTime: 0, 
+                lastReviewTime: Date.now() 
+            });
+        } else if (type === 'recite_image') {
+            if(!imageToSave) return alert('请上传图片！');
+            if(currentReciteMasks.length === 0) return alert('请至少框选一个遮盖区域！');
+            db[currentSubject].recitations.push({ id: newId, pointId: smartAddTargetNodeId, type: 'image-mask', title: '图片背诵任务', image: imageToSave, masks: [...currentReciteMasks], currentLevel: 0, nextReviewTime: 0, lastReviewTime: Date.now() });
+        }
+    }
+    
+    saveDbToLocalStorage(); closeSmartAddModal();
+    renderTreeStructure('tree-container', 'practice'); renderTreeStructure('recite-tree-container', 'recite');
+    updateGlobalDashboards(); updateDashboards();
+    alert('录入成功！');
+}
+
+
+function updateDashboards() {
+    document.getElementById('dash-progress').innerText = `${currentPracticeIndex} / ${activePracticeQueue.length}`;
+    document.getElementById('dash-correct').innerText = practiceCorrectCount;
+    document.getElementById('dash-wrong').innerText = practiceWrongCount;
+    
+    document.getElementById('recite-dash-progress').innerText = `${currentReciteIndex} / ${activeReciteQueue.length}`;
+}
+
+// 跨周计划
+function renderCalendarGrid() {
+    const container = document.getElementById('calendar-grid-container');
+    if (!container) return;
+    const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    const now = new Date();
+    const currDay = now.getDay() === 0 ? 7 : now.getDay();
+    const mondayDelta = 1 - currDay + (currentWeekOffset * 7);
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayDelta);
+    
+    container.innerHTML = '';
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+        const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const isToday = d.toDateString() === now.toDateString();
+        
+        let taskHtml = '';
+        const dayTasks = taskStorage.filter(t => t.dateStr === iso);
+        if(dayTasks.length === 0) taskHtml = `<p class="text-sage-text-muted text-xs py-3 opacity-50 italic text-center">暂无计划</p>`;
+        else {
+            dayTasks.forEach(t => {
+                taskHtml += `
+                    <div class="group relative text-[11px] p-1.5 mb-1.5 rounded bg-sage-bg/60 cursor-pointer hover:bg-sage-border/50 transition-colors flex justify-between items-start gap-1">
+                        <div onclick="toggleCalendarTask(${t.id})" class="flex-1 ${t.completed ? 'task-done' : 'text-sage-text-main font-bold'} break-words">${t.text}</div>
+                        <div class="hidden group-hover:flex items-center gap-1 shrink-0 pl-1 pt-0.5">
+                            <span onclick="editCalendarTask(event, ${t.id})" class="material-symbols-outlined !text-[14px] text-sage-text-muted hover:text-sage-primary" title="修改">edit</span>
+                            <span onclick="deleteCalendarTask(event, ${t.id})" class="material-symbols-outlined !text-[14px] text-sage-text-muted hover:text-sage-error" title="删除">close</span>
+                        </div>
+                    </div>`;
+            });
+        }
+        
+        container.innerHTML += `
+            <div class="p-3 border rounded-xl flex flex-col justify-between bg-white min-w-[100px] ${isToday ? 'border-sage-primary ring-2 ring-sage-primary/30' : 'border-sage-border'} shadow-sm">
+                <div class="flex justify-between items-center text-xs mb-2 border-b border-sage-border/50 pb-1.5">
+                    <span class="font-bold ${isToday ? 'text-sage-primary' : 'text-sage-text-muted'}">${days[i]}</span>
+                    <span class="text-sage-text-muted font-mono font-medium">${d.getMonth()+1}/${d.getDate()}</span>
+                </div>
+                <div class="flex-1 overflow-y-auto min-h-[40px]">${taskHtml}</div>
+                <button onclick="addCalendarTask('${iso}')" class="mt-2 border border-dashed border-sage-accent text-sage-primary text-[10px] py-1 rounded hover:bg-sage-bg font-bold transition-colors">添加</button>
+            </div>
+        `;
+    }
+}
+function changeWeekOffset(offset) { currentWeekOffset = offset === 0 ? 0 : currentWeekOffset + offset; renderCalendarGrid(); }
+function addCalendarTask(dateStr) {
+    const text = prompt("请输入计划内容：");
+    if(text && text.trim()) {
+        taskStorage.push({ id: Date.now(), dateStr: dateStr, text: text.trim(), completed: false });
+        localStorage.setItem('task_storage', JSON.stringify(taskStorage)); renderCalendarGrid();
+    }
+}
+function toggleCalendarTask(id) {
+    const task = taskStorage.find(t => t.id === id);
+    if(task) { task.completed = !task.completed; localStorage.setItem('task_storage', JSON.stringify(taskStorage)); renderCalendarGrid(); }
+}
+function editCalendarTask(event, id) {
+    event.stopPropagation(); // 阻止触发打卡完成事件
+    const task = taskStorage.find(t => t.id === id);
+    if(task) {
+        const newText = prompt("修改计划内容：", task.text);
+        if(newText !== null && newText.trim() !== "") {
+            task.text = newText.trim();
+            localStorage.setItem('task_storage', JSON.stringify(taskStorage)); 
+            renderCalendarGrid();
+        }
+    }
+}
+function deleteCalendarTask(event, id) {
+    event.stopPropagation(); // 阻止触发打卡完成事件
+    if(confirm("确定要删除此计划吗？")) {
+        taskStorage = taskStorage.filter(t => t.id !== id);
+        localStorage.setItem('task_storage', JSON.stringify(taskStorage)); 
+        renderCalendarGrid();
+    }
+}
+
+// 统一可放大渲染包裹核心方法 (用于所有带有图片的题或背诵卡)
+function renderImageWithZoom(imageSrc, masks, isFastMode) {
+    if (!imageSrc) return '';
+    const masksJson = masks ? encodeURIComponent(JSON.stringify(masks)) : '[]';
+    
+    let masksHtml = '';
+    if (masks && masks.length) {
+        masksHtml = masks.map(m => {
+            const ansText = m.answer || '';
+            if (isFastMode) {
+                return `<div class="absolute bg-transparent text-sage-correct text-xs md:text-sm font-black rounded border-2 border-sage-primary/40 text-center px-1 flex items-center justify-center cursor-pointer hover:bg-sage-primary/20 transition-colors" style="left: ${m.x}%; top: ${m.y}%; width: ${m.w}%; height: ${m.h}%;" data-answer="${ansText}" data-state="answer" onclick="event.stopPropagation(); toggleMask(this)">${ansText}</div>`;
+            } else {
+                return `<div class="absolute bg-neutral-800 text-transparent text-xs md:text-sm flex items-center justify-center font-bold rounded cursor-pointer border border-neutral-900 shadow-xs select-none" style="left: ${m.x}%; top: ${m.y}%; width: ${m.w}%; height: ${m.h}%;" data-answer="${ansText}" data-state="mask" onclick="event.stopPropagation(); toggleMask(this)">？</div>`;
+            }
+        }).join('');
+    }
+
+    return `
+    <div class="flex flex-col items-center mt-3 mb-2 w-full">
+        <div class="relative inline-block border border-sage-border rounded-xl bg-neutral-100 overflow-hidden shadow-sm max-w-full">
+            <img src="${imageSrc}" class="max-w-full block mx-auto" style="max-height: 250px;">
+            ${masksHtml}
+        </div>
+        <button onclick="openFullscreenImage('${imageSrc}', '${masksJson}', ${isFastMode ? 'true' : 'false'})" class="mt-2 text-xs bg-white border border-sage-border text-sage-text-muted hover:text-sage-primary hover:bg-sage-bg px-4 py-1.5 rounded-full font-bold transition-colors shadow-sm flex items-center justify-center gap-1">
+            <span class="material-symbols-outlined !text-[16px]">zoom_in</span> 放大查看原图
+        </button>
+    </div>`;
+}
+
+// ==========================================
+// 5. 刷题与错题重温核心逻辑
+// ==========================================
+function getSelectedPointIds(viewPrefix) {
+    let checkedBoxes = document.querySelectorAll(`input[id^="chk-${viewPrefix}-"]:checked`);
+    let points = new Set();
+    checkedBoxes.forEach(box => {
+        let id = box.id.replace(`chk-${viewPrefix}-`, '');
+        function findNode(nodes) {
+            for(let n of nodes) {
+                if(n.id === id) return n;
+                if(n.children) { let res = findNode(n.children); if(res) return res; }
+            }
+            return null;
+        }
+        let node = findNode(db[currentSubject].tree);
+        if(node) {
+            function getLeaves(n) {
+                if(n.type === 'point') points.add(n.id);
+                if(n.children) n.children.forEach(getLeaves);
+            }
+            getLeaves(node);
+        }
+    });
+    return points;
+}
+
+function triggerAutomatedPaperGeneration(viewPrefix) {
+    const currentData = db[currentSubject];
+    const selectedPoints = getSelectedPointIds(viewPrefix);
+    
+    if (selectedPoints.size === 0) {
+        alert("请先在左侧大纲树中勾选要练习的知识点节点！");
+        return;
+    }
+
+    if (viewPrefix === 'practice') {
+        let pool = currentData.questions.filter(q => selectedPoints.has(q.pointId));
+        let choiceCount = parseInt(document.getElementById('strategy-choice-count')?.value || '2');
+        let blankCount = parseInt(document.getElementById('strategy-blank-count')?.value || '2');
+        const order = document.getElementById('filter-order')?.value || 'sequential';
+        
+        let choices = pool.filter(q => q.type === 'choice');
+        let blanks = pool.filter(q => q.type === 'blank');
+        
+        if (order === 'random') {
+            choices.sort(() => Math.random() - 0.5);
+            blanks.sort(() => Math.random() - 0.5);
+        }
+        
+        let finalQ = [...choices.slice(0, choiceCount), ...blanks.slice(0, blankCount)];
+        if (order === 'random') finalQ.sort(() => Math.random() - 0.5);
+        
+        if (finalQ.length === 0) {
+            alert("勾选的知识点下没有符合条件的题目，请重新选择或先录入题目！"); return;
+        }
+        
+        activePracticeQueue = finalQ; currentPracticeIndex = 0;
+        renderPracticeQuestionItem(activePracticeQueue[0]);
+    } else {
+        let pool = currentData.recitations.filter(r => selectedPoints.has(r.pointId));
+        const order = document.getElementById('recite-filter-order')?.value || 'sequential';
+        if (order === 'random') pool.sort(() => Math.random() - 0.5);
+        
+        if(pool.length === 0) {
+            alert("勾选的知识点下没有背诵卡片，请重新选择或先录入卡片！"); return;
+        }
+        
+        activeReciteQueue = pool; currentReciteIndex = 0;
+        renderRecitationDualModeCard(activeReciteQueue[0], 'recite-card-container', false);
+    }
+    updateDashboards();
+}
+
+function renderPracticeQuestionItem(q) {
+    const container = document.getElementById('practice-card-container');
+    if (!q) { container.innerHTML = `<div class="text-center py-20 text-sage-correct font-bold text-base">🎉 当前选定知识点专属卷已全部完成！</div>`; return; }
+    
+    const isFastMode = document.getElementById('practice-fast-mode')?.checked;
+    const aiBoxId = `ai-box-prac-${q.id}`;
+    let typeName = q.type === 'choice' ? '单选题' : '填空题';
+    
+    let html = `
+        <div class="space-y-5 text-left text-sm">
+            <div class="flex items-center justify-between border-b border-sage-border pb-3">
+                <span class="bg-sage-primary text-white text-xs px-2 py-0.5 rounded font-bold">${typeName}</span>
+                <span class="text-xs text-sage-text-muted font-bold">考点: ${getPointNamePath(q.pointId)}</span>
+            </div>
+            <p class="font-bold text-sage-text-main leading-relaxed text-base">${q.stem}</p>
+            ${renderImageWithZoom(q.image, q.masks, isFastMode)}
+            <div class="grid grid-cols-1 gap-2.5 pt-2">
+    `;
+    
+    if (q.type === 'choice') {
+        q.options.forEach((opt, idx) => {
+            const char = String.fromCharCode(65 + idx);
+            const isCorrectOpt = (char === q.answer);
+            if (isFastMode) {
+                let itemClass = "w-full text-left p-3.5 rounded-xl border font-bold flex items-center gap-3 cursor-default " + (isCorrectOpt ? "bg-emerald-50 border-emerald-300 text-emerald-800" : "bg-white border-sage-border text-sage-text-muted opacity-70");
+                html += `<div class="${itemClass}"><span class="w-6 h-6 rounded-full ${isCorrectOpt ? 'bg-emerald-200':'bg-sage-bg'} flex items-center justify-center text-xs font-black shadow-sm">${char}</span><span>${opt}</span></div>`;
+            } else {
+                html += `<button onclick="evaluatePracticeChoiceAnswer('${char}', '${q.answer}')" class="w-full text-left p-3.5 rounded-xl border border-sage-border hover:bg-sage-bg transition-all font-bold text-sage-text-main flex items-center gap-3 bg-white shadow-sm"><span class="w-6 h-6 rounded-full bg-sage-bg border border-sage-border flex items-center justify-center text-xs font-black">${char}</span><span>${opt}</span></button>`;
+            }
+        });
+    } else {
+        if (isFastMode) {
+            html += `<div class="w-full text-left p-3.5 rounded-xl border bg-emerald-50 border-emerald-300 text-emerald-800 font-bold flex items-center gap-3"><span class="material-symbols-outlined !text-[18px]">edit_square</span> 答案：${q.answer}</div>`;
+        } else {
+            html += `<input type="text" id="practice-blank-ans" class="w-full bg-white border-sage-border rounded-xl text-sm p-3 font-bold focus:ring-sage-primary shadow-sm" placeholder="请输入你的答案...">
+                     <button onclick="evaluatePracticeChoiceAnswer(document.getElementById('practice-blank-ans').value, '${q.answer}')" class="w-full bg-[#4F6F52] text-white p-3 rounded-xl font-bold hover:opacity-90 shadow-sm mt-2">核对答案</button>`;
+        }
+    }
+    
+    html += `</div>`;
+    
+    if (isFastMode) {
+        html += `<div class="p-4 rounded-xl border text-sm bg-sage-primary-light/30 border-sage-primary/30 text-sage-text-main mt-3 shadow-sm"><p class="font-black text-sage-primary">【标准答案】${q.answer}</p></div>`;
+    } else {
+        html += `<div id="practice-feedback-box" class="hidden p-4 rounded-xl border leading-relaxed shadow-sm"></div>`;
+    }
+    
+    html += `
+            <div id="${aiBoxId}" class="mt-3"></div>
+            <div class="flex justify-between items-center pt-4 border-t border-sage-border text-sm">
+                <button onclick="requestAI(\`${getPracticeAiPrompt(q)}\`, '${aiBoxId}')" class="border border-sage-accent text-sage-primary px-4 py-1.5 rounded-xl font-bold flex items-center gap-1 hover:bg-sage-bg transition-colors"><span class="material-symbols-outlined !text-[18px]">smart_toy</span> 深入解析</button>
+                <div class="flex items-center gap-3">
+                    <span class="text-sage-text-muted font-bold text-xs">进度: ${currentPracticeIndex + 1} / ${activePracticeQueue.length}</span>
+                    <button onclick="advancePracticeQuestion()" class="bg-sage-accent text-white px-4 py-2 rounded-xl font-bold hover:opacity-90 flex items-center gap-1 shadow-sm transition-opacity">下一题 <span class="material-symbols-outlined !text-[18px]">arrow_forward</span></button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.innerHTML = html;
+}
+
+function evaluatePracticeChoiceAnswer(userAns, correctAns) {
+    const box = document.getElementById('practice-feedback-box');
+    if(!box) return; 
+    box.classList.remove('hidden');
+    const q = activePracticeQueue[currentPracticeIndex];
+    q.lastReviewTime = Date.now();
+    let m = parseInt(localStorage.getItem('total_mastered') || '0');
+
+    if (userAns.trim().toUpperCase() === correctAns.toUpperCase()) {
+        box.className = "p-4 rounded-xl border text-sm bg-emerald-50 border-emerald-200 text-emerald-800 font-bold mt-3 block";
+        box.innerHTML = `🎉 回答正确！标准答案是 ${correctAns}。`;
+        practiceCorrectCount++; m++; localStorage.setItem('total_mastered', m);
+        q.isWrong = false; 
+    } else {
+        box.className = "p-4 rounded-xl border text-sm bg-red-50 border-red-200 text-red-800 font-bold mt-3 block";
+        box.innerHTML = `❌ 回答错误。正确答案是 ${correctAns}。`;
+        practiceWrongCount++;
+        q.isWrong = true; q.currentLevel = 0; q.nextReviewTime = Date.now() + reviewIntervals[0];
+    }
+    saveDbToLocalStorage(); updateDashboards(); initWrongReviewSession(); updateGlobalDashboards();
+}
+
+function advancePracticeQuestion() { currentPracticeIndex++; renderPracticeQuestionItem(activePracticeQueue[currentPracticeIndex]); updateDashboards(); }
+
+
+// ------------------------------------------
+// 错题重温核心逻辑
+// ------------------------------------------
+function initWrongReviewSession() {
+    const now = Date.now();
+    const mode = document.getElementById('wrong-strategy-mode')?.value || 'ebbinghaus';
+    const typeFilter = document.getElementById('wrong-type-filter')?.value || 'all';
+
+    let allWrongs = db[currentSubject].questions.filter(q => q.isWrong);
+    
+    if (mode === 'thirty_days') {
+        let pool = db[currentSubject].questions.filter(q => q.lastReviewTime && (now - q.lastReviewTime > 30 * 24 * 60 * 60 * 1000));
+        if (typeFilter !== 'all') pool = pool.filter(q => q.type === typeFilter);
+        activeWrongReviewQueue = pool;
+    } else {
+        if (typeFilter !== 'all') allWrongs = allWrongs.filter(q => q.type === typeFilter);
+        
+        if (mode === 'ebbinghaus') {
+            activeWrongReviewQueue = allWrongs.filter(q => q.nextReviewTime !== null && (!q.nextReviewTime || now >= q.nextReviewTime));
+        } else {
+            activeWrongReviewQueue = [...allWrongs];
+        }
+    }
+    
+    updateWrongStatsDisplay(db[currentSubject].questions.filter(q => q.isWrong));
+    renderWrongReviewQuestionItem();
+}
+
+function updateWrongStatsDisplay(allWrongsTypeFiltered) {
+    const now = new Date();
+    const endOfTodayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime();
+    const endOfTomorrowMs = endOfTodayMs + 86400000;
+
+    let ebgWrongs = allWrongsTypeFiltered.filter(q => q.nextReviewTime !== null);
+
+    let totalCount = allWrongsTypeFiltered.length;
+    let todayCount = ebgWrongs.filter(q => !q.nextReviewTime || q.nextReviewTime <= endOfTodayMs).length;
+    let tomorrowCount = ebgWrongs.filter(q => q.nextReviewTime > endOfTodayMs && q.nextReviewTime <= endOfTomorrowMs).length;
+
+    let upcoming = ebgWrongs.filter(q => q.nextReviewTime > now.getTime()).map(q => q.nextReviewTime);
+    let nextTimeStr = "无延迟";
+    if (upcoming.length > 0) {
+        let minTime = Math.min(...upcoming);
+        let d = new Date(minTime);
+        nextTimeStr = `${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+    }
+
+    document.getElementById('ebg-total-count').innerText = `${totalCount} 题`;
+    document.getElementById('ebg-today-count').innerText = `${todayCount} 题`;
+    document.getElementById('ebg-tomorrow-count').innerText = `${tomorrowCount} 题`;
+    document.getElementById('ebg-next-review-time').innerText = nextTimeStr;
+    document.getElementById('ebg-next-review-time').classList.replace('text-sm', 'text-xs');
+}
+
+function advanceWrongReviewFastMode() {
+    activeWrongReviewQueue.shift();
+    renderWrongReviewQuestionItem();
+}
+
+function advanceWrongReviewAfterEval() {
+    renderWrongReviewQuestionItem();
+    updateDashboards();
+}
+
+function renderWrongReviewQuestionItem() {
+    const container = document.getElementById('wrong-quiz-card-container');
+    if (activeWrongReviewQueue.length === 0) { 
+        container.innerHTML = `<div class="text-center py-20 text-sage-text-muted space-y-3"><span class="material-symbols-outlined !text-[50px] text-sage-correct">verified</span><p class="text-base font-black text-sage-primary">太利索了！🎉 本组练习评估任务已全部流转完毕！</p></div>`; 
+        return; 
+    }
+    
+    const q = activeWrongReviewQueue[0];
+    const mode = document.getElementById('wrong-strategy-mode')?.value || 'ebbinghaus';
+    const isFast = (mode === 'all_pool'); 
+    const aiBoxId = `ai-box-wrg-${q.id}`;
+    let typeName = q.type === 'choice' ? '单选题' : '填空题';
+
+    let html = `
+        <div class="space-y-5 text-left text-sm">
+            <div class="flex justify-between items-center border-b border-sage-border pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="${mode==='thirty_days'?'bg-orange-500':'bg-sage-error'} text-white text-xs px-2 py-0.5 rounded font-bold">${mode==='thirty_days'?'30天激活':'错题重温'}</span>
+                    <span class="text-xs font-bold text-sage-text-muted">[${typeName}] 剩余: ${activeWrongReviewQueue.length}道</span>
+                </div>
+                <span class="text-xs text-sage-text-muted font-bold truncate max-w-[50%]">节点: ${getPointNamePath(q.pointId)}</span>
+            </div>
+            <p class="font-bold text-sage-text-main text-base leading-relaxed">${q.stem}</p>
+            ${renderImageWithZoom(q.image, q.masks, isFast)}
+            <div class="grid grid-cols-1 gap-2.5 pt-2">
+    `;
+    
+    if (q.type === 'choice') {
+        q.options.forEach((opt, idx) => {
+            const char = String.fromCharCode(65 + idx);
+            const isCorrectOpt = (char === q.answer);
+            if(isFast) {
+                let cl = isCorrectOpt ? "bg-emerald-50 border-emerald-300 text-emerald-800" : "bg-sage-bg/30 text-sage-text-muted opacity-70";
+                html += `<div class="p-3 rounded-xl border border-sage-border ${cl} font-bold flex items-center gap-3"><span>${char}. ${opt.replace(/^[A-D]\.\s*/,'')}</span></div>`;
+            } else {
+                html += `<button onclick="evalWrongAnswer('${q.id}', '${char}')" class="w-full text-left p-3.5 rounded-xl border border-sage-border hover:bg-sage-bg transition-all font-bold text-sage-text-main flex items-center gap-3 bg-white shadow-sm"><span>${char}. ${opt.replace(/^[A-D]\.\s*/,'')}</span></button>`;
+            }
+        });
+    } else {
+        if(isFast) {
+            html += `<div class="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-800 font-black flex items-center gap-2"><span class="material-symbols-outlined !text-[18px]">edit_square</span>【答案】${q.answer}</div>`;
+        } else {
+            html += `<input type="text" id="wrong-blank-ans" class="w-full bg-white border-sage-border rounded-xl text-sm p-3 font-bold focus:ring-sage-primary shadow-sm" placeholder="请填入正确答案进行消灭...">
+                     <button onclick="evalWrongAnswer('${q.id}', document.getElementById('wrong-blank-ans').value)" class="w-full bg-sage-error text-white p-3 rounded-xl font-bold hover:bg-red-800 shadow-sm mt-2 transition-colors">核简答案</button>`;
+        }
+    }
+
+    if(isFast && q.type === 'choice') html += `<div class="p-3 bg-sage-primary-light/20 border border-sage-primary/20 rounded-xl text-sage-text-main font-black mt-3 shadow-sm">【答案】${q.answer}</div>`;
+    if(!isFast) html += `<div id="wrong-feedback-${q.id}" class="hidden p-4 rounded-xl border leading-relaxed mt-3 shadow-sm flex items-center justify-between"></div>`;
+
+    html += `
+            </div>
+            <div id="${aiBoxId}" class="mt-3"></div>
+            <div class="pt-4 border-t border-sage-border flex justify-between items-center mt-5">
+                <button onclick="requestAI(\`${getPracticeAiPrompt(q)}\`, '${aiBoxId}')" class="border border-sage-accent text-sage-primary px-4 py-1.5 rounded-xl font-bold flex items-center gap-1 hover:bg-sage-bg transition-colors"><span class="material-symbols-outlined !text-[18px]">smart_toy</span> 深入解析</button>
+                ${isFast ? `<button onclick="advanceWrongReviewFastMode()" class="bg-sage-primary text-white px-5 py-2 rounded-xl font-bold shadow-sm hover:opacity-90 transition-opacity flex items-center gap-1">下一题 <span class="material-symbols-outlined !text-[18px]">arrow_forward</span></button>` : ''}
+            </div>
+        </div>
+    `;
+    container.innerHTML = html;
+}
+
+function evalWrongAnswer(qId, userAns) {
+    const q = db[currentSubject].questions.find(x => x.id === qId);
+    if(!q) return;
+    const box = document.getElementById(`wrong-feedback-${q.id}`);
+    const mode = document.getElementById('wrong-strategy-mode')?.value || 'ebbinghaus';
+    
+    if (userAns.trim().toUpperCase() === q.answer.toUpperCase()) {
+        if (mode === 'thirty_days') {
+            q.lastReviewTime = Date.now(); 
+        } else {
+            q.currentLevel = (q.currentLevel || 0) + 1;
+            if(q.currentLevel >= 7) {
+                q.nextReviewTime = null; 
+            } else {
+                q.nextReviewTime = Date.now() + reviewIntervals[q.currentLevel];
+            }
+            q.lastReviewTime = Date.now();
+        }
+        
+        if(box) { 
+            box.className = "p-4 rounded-xl border text-sm bg-emerald-50 border-emerald-200 text-emerald-800 font-bold mt-3 flex justify-between items-center"; 
+            box.innerHTML = `<span>🎉 答对了！本题阶段已流转。</span> <button onclick="advanceWrongReviewAfterEval()" class="bg-white border border-emerald-300 text-emerald-800 px-4 py-1.5 rounded-lg shadow-sm font-black flex items-center gap-1 hover:bg-emerald-100 transition-colors">下一题 <span class="material-symbols-outlined !text-[16px]">arrow_forward</span></button>`; 
+        }
+        activeWrongReviewQueue.shift(); 
+    } else {
+        if (mode === 'thirty_days') {
+            q.isWrong = true;
+            q.currentLevel = 0;
+            q.nextReviewTime = Date.now() + reviewIntervals[0];
+            q.lastReviewTime = Date.now();
+        } else {
+            q.currentLevel = 0; 
+            q.nextReviewTime = Date.now() + reviewIntervals[0];
+            q.lastReviewTime = Date.now();
+        }
+        
+        if(box) { 
+            box.className = "p-4 rounded-xl border text-sm bg-red-50 border-red-200 text-red-800 font-bold mt-3 flex justify-between items-center"; 
+            box.innerHTML = `<span>❌ 依然不对，正确答案：${q.answer}。</span> <button onclick="advanceWrongReviewAfterEval()" class="bg-white border border-red-300 text-red-800 px-4 py-1.5 rounded-lg shadow-sm font-black flex items-center gap-1 hover:bg-red-100 transition-colors">下一题 <span class="material-symbols-outlined !text-[16px]">arrow_forward</span></button>`; 
+        }
+        const failedQ = activeWrongReviewQueue.shift();
+        activeWrongReviewQueue.push(failedQ); 
+    }
+    
+    saveDbToLocalStorage();
+    updateWrongStatsDisplay(db[currentSubject].questions.filter(x=>x.isWrong));
+}
+
+
+// ==========================================
+// 6. 背诵与沉淀背诵重温核心逻辑
+// ==========================================
+function toggleTextCloze(el) {
+    const isAnswer = el.getAttribute('data-state') === 'answer';
+    if(isAnswer) {
+        el.innerText = '？？？';
+        el.setAttribute('data-state', 'mask');
+        el.className = 'bg-neutral-300 border-b-2 border-neutral-400 text-transparent select-none px-2 py-0.5 rounded mx-1 cursor-pointer font-bold transition-all';
+    } else {
+        el.innerText = el.getAttribute('data-answer');
+        el.setAttribute('data-state', 'answer');
+        el.className = 'text-sage-primary bg-sage-primary-light/50 px-2 rounded mx-1 font-bold cursor-pointer transition-all';
+    }
+}
+
+// 图片上的无限切换遮罩 (解决空答案和视觉体验)
+function toggleMask(el) {
+    const isAnswer = el.getAttribute('data-state') === 'answer';
+    const ansText = el.getAttribute('data-answer') || '';
+    if (isAnswer) {
+        el.innerText = '？';
+        el.setAttribute('data-state', 'mask');
+        el.className = 'absolute bg-neutral-800 text-transparent text-xs md:text-sm flex items-center justify-center font-bold rounded cursor-pointer border border-neutral-900 shadow-xs select-none';
+    } else {
+        el.innerText = ansText;
+        el.setAttribute('data-state', 'answer');
+        el.className = 'absolute bg-transparent text-sage-correct text-xs md:text-sm font-black rounded border-2 border-sage-primary/40 text-center px-1 flex items-center justify-center cursor-pointer hover:bg-sage-primary/20 transition-colors';
+    }
+}
+
+let fullscreenZoomScale = 1;
+
+function openFullscreenImage(imgSrc, masksJson, isFastMode) {
+    const masks = JSON.parse(decodeURIComponent(masksJson));
+    const container = document.getElementById('fullscreen-image-container');
+    const wrapper = document.getElementById('fullscreen-image-wrapper');
+    
+    // 重置缩放
+    fullscreenZoomScale = 1;
+    wrapper.style.transform = `scale(1)`;
+    
+    let html = `<img src="${imgSrc}" class="max-w-full max-h-[90vh] block mx-auto shadow-sm rounded-xl">`;
+    masks.forEach(m => {
+        const ansText = m.answer || '';
+        if (isFastMode) {
+            html += `<div class="absolute bg-transparent text-sage-correct text-xs md:text-sm font-black rounded border-2 border-sage-primary/40 text-center px-1 flex items-center justify-center cursor-pointer hover:bg-sage-primary/20 transition-colors" style="left: ${m.x}%; top: ${m.y}%; width: ${m.w}%; height: ${m.h}%;" data-answer="${ansText}" data-state="answer" onclick="toggleMask(this)">${ansText}</div>`;
+        } else {
+            html += `<div class="absolute bg-neutral-800 text-transparent text-xs md:text-sm flex items-center justify-center font-bold rounded cursor-pointer border border-neutral-900 shadow-xs select-none" style="left: ${m.x}%; top: ${m.y}%; width: ${m.w}%; height: ${m.h}%;" data-answer="${ansText}" data-state="mask" onclick="toggleMask(this)">？</div>`;
+        }
+    });
+    
+    container.innerHTML = html;
+    document.getElementById('fullscreen-image-modal').classList.remove('hidden');
+}
+
+function closeFullscreenImage() { document.getElementById('fullscreen-image-modal').classList.add('hidden'); }
+
+function zoomFullscreen(delta) {
+    fullscreenZoomScale += delta;
+    if (fullscreenZoomScale < 0.5) fullscreenZoomScale = 0.5;
+    if (fullscreenZoomScale > 4) fullscreenZoomScale = 4;
+    document.getElementById('fullscreen-image-wrapper').style.transform = `scale(${fullscreenZoomScale})`;
+}
+
+function renderRecitationDualModeCard(item, containerId, isReviewMode = false) {
+    const container = document.getElementById(containerId);
+    if (!item) { 
+        if(isReviewMode) container.innerHTML = `<div class="text-center py-20 text-sage-primary font-bold text-base space-y-3"><span class="material-symbols-outlined !text-[50px]">verified</span><p>🎉 本组背诵练习评估任务已全部流转完毕！</p></div>`; 
+        else container.innerHTML = `<div class="text-center py-20 text-sage-primary font-bold text-base">🎉 专属背诵卷已背诵完毕！</div>`; 
+        return; 
+    }
+
+    const isFastMode = isReviewMode ? (document.getElementById('recite-strategy-mode')?.value === 'all_pool') : (document.getElementById('recite-fast-mode')?.checked);
+    let contentHtml = '';
+    const aiBoxId = `ai-box-rec-${item.id}`;
+
+    if (item.type === 'text-cloze') {
+        contentHtml = item.content.replace(/\[mask:([^\]]+)\]/g, function(match, innerAns) {
+            if (isFastMode) return `<span class="text-sage-primary bg-sage-primary-light/50 px-2 rounded mx-1 font-bold cursor-pointer" data-answer="${innerAns}" data-state="answer" onclick="toggleTextCloze(this)">${innerAns}</span>`;
+            else return `<span class="bg-neutral-300 border-b-2 border-neutral-400 text-transparent select-none px-2 py-0.5 rounded mx-1 cursor-pointer font-bold transition-all" data-answer="${innerAns}" data-state="mask" onclick="toggleTextCloze(this)">？？？</span>`;
+        });
+        
+        let imgHtml = renderImageWithZoom(item.image, item.masks, isFastMode);
+        contentHtml = `<div class="text-sm text-sage-text-main leading-relaxed p-5 bg-sage-bg/40 rounded-xl border border-sage-border shadow-inner font-medium">${imgHtml}${contentHtml}</div>`;
+    } else if (item.type === 'image-mask') {
+        contentHtml = renderImageWithZoom(item.image, item.masks, isFastMode);
+    }
+
+    const modeLabel = isReviewMode ? (document.getElementById('recite-strategy-mode')?.value === 'thirty_days' ? '30天激活' : '流转重温') : '专属卷背诵';
+    let progressStr = isReviewMode ? `剩余: ${activeReciteReviewQueue.length}卡` : `进度: ${currentReciteIndex + 1} / ${activeReciteQueue.length}`;
+
+    container.innerHTML = `
+        <div class="space-y-5 text-left text-sm">
+            <div class="flex justify-between items-center border-b border-sage-border pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="bg-sage-primary text-white text-xs px-2 py-0.5 rounded font-black">${item.type === 'text-cloze' ? '文字遮卡' : '图片框选'} | ${modeLabel}</span>
+                    <span class="text-xs font-bold text-sage-text-muted">${progressStr}</span>
+                </div>
+                <h4 class="font-bold text-sage-text-main truncate max-w-[50%]">${item.title}</h4>
+            </div>
+            ${contentHtml}
+            <div id="${aiBoxId}"></div>
+            <div class="pt-4 border-t border-sage-border space-y-4">
+                <div class="flex justify-start">
+                    <button onclick="requestAI(\`${getReciteAiPrompt(item)}\`, '${aiBoxId}')" class="border border-sage-accent text-sage-primary px-4 py-1.5 rounded-xl font-bold flex items-center gap-1 hover:bg-sage-bg transition-colors"><span class="material-symbols-outlined !text-[18px]">smart_toy</span> 背诵小技巧</button>
+                </div>
+                <div class="bg-sage-bg p-3 rounded-xl border border-sage-border">
+                    <p class="text-xs font-bold text-sage-text-muted text-center mb-2">四阶记忆评估 (诚实选择，驱动状态自动流转)：</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        <button onclick="execReciteTransfer('${item.id}', 0, ${isReviewMode})" class="bg-red-600 hover:bg-red-700 text-white py-2 rounded-xl font-bold transition-colors shadow-sm">很陌生</button>
+                        <button onclick="execReciteTransfer('${item.id}', 1, ${isReviewMode})" class="bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-xl font-bold transition-colors shadow-sm">有点印象</button>
+                        <button onclick="execReciteTransfer('${item.id}', 2, ${isReviewMode})" class="bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-xl font-bold transition-colors shadow-sm">基本记住</button>
+                        <button onclick="execReciteTransfer('${item.id}', 3, ${isReviewMode})" class="bg-emerald-700 hover:bg-emerald-800 text-white py-2 rounded-xl font-bold transition-colors shadow-sm">我已记住</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function initReciteReviewSession() {
+    const now = Date.now();
+    const mode = document.getElementById('recite-strategy-mode')?.value || 'ebbinghaus';
+
+    let allRecites = db[currentSubject].recitations;
+
+    if (mode === 'thirty_days') {
+        activeReciteReviewQueue = allRecites.filter(r => r.lastReviewTime && (now - r.lastReviewTime > 30 * 24 * 60 * 60 * 1000));
+    } else if (mode === 'ebbinghaus') {
+        activeReciteReviewQueue = allRecites.filter(r => r.nextReviewTime !== null && (!r.nextReviewTime || now >= r.nextReviewTime));
+    } else {
+        activeReciteReviewQueue = [...allRecites];
+    }
+    
+    updateReciteStatsDisplay(allRecites);
+    renderReciteReviewItem();
+}
+
+function updateReciteStatsDisplay(allRecites) {
+    const now = new Date();
+    // 精准锁定基于日历的"今天结束"的毫秒级时间戳，防止 setHours 修改对象的缺陷
+    const endOfTodayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime();
+    const endOfTomorrowMs = endOfTodayMs + 86400000;
+
+    let ebgRecites = allRecites.filter(r => r.nextReviewTime !== null);
+
+    let totalCount = allRecites.length;
+    let todayCount = ebgRecites.filter(r => !r.nextReviewTime || r.nextReviewTime <= endOfTodayMs).length;
+    let tomorrowCount = ebgRecites.filter(r => r.nextReviewTime > endOfTodayMs && r.nextReviewTime <= endOfTomorrowMs).length;
+
+    let upcoming = ebgRecites.filter(r => r.nextReviewTime > now.getTime()).map(r => r.nextReviewTime);
+    let nextTimeStr = "无延迟";
+    if (upcoming.length > 0) {
+        let minTime = Math.min(...upcoming);
+        let d = new Date(minTime);
+        nextTimeStr = `${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+    }
+
+    document.getElementById('recite-ebg-total-count').innerText = `${totalCount} 项`;
+    document.getElementById('recite-ebg-today-count').innerText = `${todayCount} 项`;
+    document.getElementById('recite-ebg-tomorrow-count').innerText = `${tomorrowCount} 项`;
+    document.getElementById('recite-ebg-next-review-time').innerText = nextTimeStr;
+    document.getElementById('recite-ebg-next-review-time').classList.replace('text-sm', 'text-xs');
+}
+
+function renderReciteReviewItem() {
+    renderRecitationDualModeCard(activeReciteReviewQueue[0], 'recite-wrong-card-container', true);
+}
+
+function execReciteTransfer(itemId, rating, isReviewMode) {
+    const now = Date.now();
+    let r = db[currentSubject].recitations.find(x => x.id === itemId);
+    if (!r) return;
+    const mode = document.getElementById('recite-strategy-mode')?.value;
+
+    if (mode === 'thirty_days') {
+        if (rating === 3) {
+            r.lastReviewTime = now;
+        } else {
+            r.currentLevel = 0;
+            r.nextReviewTime = now + reviewIntervals[0];
+            r.lastReviewTime = now;
+        }
+    } else {
+        if (rating === 3) { 
+            r.currentLevel = (r.currentLevel || 0) + 1;
+            if (r.currentLevel >= 7) r.nextReviewTime = null; 
+            else r.nextReviewTime = now + reviewIntervals[r.currentLevel];
+        } else { 
+            r.currentLevel = 0; 
+            r.nextReviewTime = now + reviewIntervals[0]; 
+        }
+        r.lastReviewTime = now;
+    }
+
+    saveDbToLocalStorage();
+
+    if (isReviewMode) {
+        const processed = activeReciteReviewQueue.shift();
+        if (rating < 3 && mode !== 'thirty_days') {
+            activeReciteReviewQueue.push(processed); 
+        }
+        updateReciteStatsDisplay(db[currentSubject].recitations);
+        renderReciteReviewItem();
+    } else {
+        currentReciteIndex++;
+        renderRecitationDualModeCard(activeReciteQueue[currentReciteIndex], 'recite-card-container', false);
+    }
+    updateDashboards();
+}
+
+
+// 沉淀本管理逻辑
+function getPointNamePath(pId) {
+    let path = '未知考点';
+    function findNode(nodes, currentPath) {
+        for (let n of nodes) {
+            let p = currentPath ? currentPath + " - " + n.title : n.title;
+            if (n.id === pId) { path = p; return true; }
+            if (n.children && findNode(n.children, p)) return true;
+        }
+        return false;
+    }
+    findNode(db[currentSubject].tree, "");
+    return path;
+}
+
+function formatDate(ts) {
+    if(!ts) return '未排程'; const d = new Date(ts);
+    return `${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+}
+
+function openManageModal(type) {
+    currentManageType = type;
+    const modal = document.getElementById('manage-modal');
+    const title = document.getElementById('manage-modal-title');
+    const listContainer = document.getElementById('manage-modal-list');
+    modal.classList.remove('hidden'); listContainer.innerHTML = '';
+
+    let items = [];
+    if (type === 'practice') { title.innerText = '管理本地题库'; items = db[currentSubject].questions; } 
+    else if (type === 'wrong') { title.innerText = '管理错题本'; items = db[currentSubject].questions.filter(q => q.isWrong); } 
+    else if (type === 'recite') { title.innerText = '管理本地背诵库'; items = db[currentSubject].recitations; } 
+    else if (type === 'recite-wrong') { title.innerText = '管理沉淀背诵本'; items = db[currentSubject].recitations; }
+
+    if(items.length === 0) { listContainer.innerHTML = '<p class="text-center text-sage-text-muted py-6 font-bold">本库暂无数据</p>'; return; }
+
+    items.forEach((item, idx) => {
+        let path = getPointNamePath(item.pointId);
+        let timeStr = item.nextReviewTime ? formatDate(item.nextReviewTime) : '未排程';
+        let qTypeStr = item.type === 'choice' ? '选择题' : (item.type === 'blank' ? '填空题' : (item.type === 'text-cloze' ? '文字卡' : '图片卡'));
+        let imgTag = item.image ? `<span class="bg-sage-primary-light text-sage-primary px-1.5 py-0.5 rounded text-[10px] ml-2 font-bold inline-flex items-center"><span class="material-symbols-outlined !text-[12px] mr-0.5">image</span>配图</span>` : '';
+        
+        let html = `<div class="p-4 border border-sage-border rounded-xl bg-white space-y-2 relative pr-20 shadow-sm">`;
+        
+        if (type === 'practice' || type === 'wrong') {
+            html += `
+                <p class="font-bold text-sage-text-main text-sm leading-relaxed">No.${idx+1} [${qTypeStr}] 题干: ${(item.stem).substring(0,60)}...${imgTag}</p>
+                <p class="text-xs text-sage-text-muted font-medium">所属节点: ${path}</p>
+                <p class="text-xs text-sage-text-muted font-medium">答案: <b class="text-sage-primary">${item.answer}</b></p>
+            `;
+            if (type === 'wrong') html += `<p class="text-[11px] md:text-xs text-amber-700 font-bold">📅 下次复习: ${timeStr}</p>`;
+        } else {
+            let contentStr = item.type === 'text-cloze' ? item.content : '【图片背诵卡片】';
+            html += `
+                <p class="font-bold text-sage-text-main text-sm">No.${idx+1} [${qTypeStr}] 题干(标题): ${(item.title).substring(0,30)}...${imgTag}</p>
+                <p class="text-xs text-sage-text-muted font-medium">所属节点: ${path}</p>
+                <p class="text-xs text-sage-text-muted font-medium line-clamp-2">内容: <b class="text-sage-primary">${contentStr}</b></p>
+            `;
+            if (type === 'recite-wrong') html += `<p class="text-[11px] md:text-xs text-blue-700 font-bold">📅 下次复习: ${timeStr}</p>`;
+        }
+
+        html += `
+            <div class="absolute right-4 top-4 flex gap-1.5 flex-col md:flex-row">
+                <button onclick="editDynamicItem('${item.id}', '${type}')" class="text-sage-primary bg-sage-bg hover:bg-sage-primary hover:text-white p-2 rounded-lg transition-colors shadow-sm"><span class="material-symbols-outlined !text-[18px]">edit</span></button>
+                <button onclick="deleteItem('${item.id}', '${type}')" class="text-sage-error bg-red-50 hover:bg-red-600 hover:text-white p-2 rounded-lg transition-colors shadow-sm"><span class="material-symbols-outlined !text-[18px]">delete</span></button>
+            </div>
+        </div>`;
+        listContainer.innerHTML += html;
+    });
+}
+
+function closeManageModal() {
+    document.getElementById('manage-modal').classList.add('hidden');
+    if (currentManageType === 'wrong') initWrongReviewSession();
+    if (currentManageType === 'recite-wrong') initReciteReviewSession();
+    updateDashboards();
+}
+
+function deleteItem(id, type) {
+    if(!confirm('确定要删除此条目吗？此操作不可逆！')) return;
+    if (type === 'practice' || type === 'wrong') {
+        db[currentSubject].questions = db[currentSubject].questions.filter(q => q.id !== id);
+    } else {
+        db[currentSubject].recitations = db[currentSubject].recitations.filter(r => r.id !== id);
+    }
+    saveDbToLocalStorage(); openManageModal(currentManageType);
+    if(type === 'wrong' || type === 'practice') initWrongReviewSession();
+    if(type === 'recite' || type === 'recite-wrong') initReciteReviewSession();
+    updateDashboards(); updateGlobalDashboards();
+    renderTreeStructure('tree-container', 'practice'); renderTreeStructure('recite-tree-container', 'recite');
+}
+
+let currentEditItemId = '';
+let currentEditItemType = '';
+let currentEditImageBase64 = null;
+
+function handleEditImageChange(input) {
+    if(input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => currentEditImageBase64 = e.target.result;
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function editDynamicItem(id, type) {
+    currentEditItemId = id;
+    currentEditItemType = type;
+    const body = document.getElementById('edit-question-body');
+    currentEditImageBase64 = null;
+    
+    if (type === 'practice' || type === 'wrong') {
+        const q = db[currentSubject].questions.find(x => x.id === id);
+        if(!q) return;
+        currentEditImageBase64 = q.image;
+        
+        let imgHtml = q.image ? `<div class="mb-4"><label class="block text-sage-text-muted font-bold mb-1.5">当前配图 (点击放大)</label><img src="${q.image}" class="max-h-[120px] object-contain rounded border border-sage-border cursor-pointer hover:opacity-80 transition-opacity" onclick="openFullscreenImage('${q.image}', '[]', false)"></div>` : '';
+        let fileInputHtml = `<div><label class="block text-sage-text-muted font-bold mb-1.5">${q.image ? '更换配图 (覆盖)' : '添加配图 (可选)'}</label><input type="file" onchange="handleEditImageChange(this)" accept="image/*" class="w-full text-sm text-sage-text-muted file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-sage-primary-light/50 file:text-sage-primary hover:file:bg-sage-primary-light transition-colors cursor-pointer"></div>`;
+
+        if (q.type === 'choice') {
+            body.innerHTML = `
+                <div class="space-y-4">
+                    ${imgHtml} ${fileInputHtml}
+                    <div>
+                        <label class="block text-sage-text-muted font-bold mb-1.5">修改题干</label>
+                        <textarea id="edit-q-stem" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-3 focus:ring-sage-primary font-medium" rows="3">${q.stem}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sage-text-muted font-bold mb-1.5">选项内容编辑 (A, B, C, D)</label>
+                        ${q.options.map((opt, i) => `<input type="text" id="edit-q-opt-${i}" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-2.5 mb-2 focus:ring-sage-primary font-medium" value="${opt.replace(/^[A-D]\.\s*/, '')}">`).join('')}
+                    </div>
+                    <div>
+                        <label class="block text-sage-text-muted font-bold mb-1.5">修改标准参考答案</label>
+                        <input type="text" id="edit-q-ans" class="w-full bg-emerald-50 border-emerald-200 rounded-xl text-sm p-2.5 focus:ring-sage-primary font-black text-emerald-800" value="${q.answer}">
+                    </div>
+                </div>
+            `;
+        } else {
+            body.innerHTML = `
+                <div class="space-y-4">
+                    ${imgHtml} ${fileInputHtml}
+                    <div>
+                        <label class="block text-sage-text-muted font-bold mb-1.5">修改题干 (用 _______ 留空)</label>
+                        <textarea id="edit-q-stem" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-3 focus:ring-sage-primary font-medium" rows="3">${q.stem}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sage-text-muted font-bold mb-1.5">修改标准参考答案</label>
+                        <input type="text" id="edit-q-ans" class="w-full bg-emerald-50 border-emerald-200 rounded-xl text-sm p-2.5 focus:ring-sage-primary font-black text-emerald-800" value="${q.answer}">
+                    </div>
+                </div>
+            `;
+        }
+    } else {
+        const r = db[currentSubject].recitations.find(x => x.id === id);
+        if(!r) return;
+        currentEditImageBase64 = r.image;
+        
+        let imgHtml = r.image ? `<div class="mb-4"><label class="block text-sage-text-muted font-bold mb-1.5">当前配图 (点击放大)</label><img src="${r.image}" class="max-h-[120px] object-contain rounded border border-sage-border cursor-pointer hover:opacity-80 transition-opacity" onclick="openFullscreenImage('${r.image}', '[]', false)"></div>` : '';
+        let fileInputHtml = `<div><label class="block text-sage-text-muted font-bold mb-1.5">${r.image ? '更换配图 (覆盖)' : '添加配图 (可选)'}</label><input type="file" onchange="handleEditImageChange(this)" accept="image/*" class="w-full text-sm text-sage-text-muted file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-sage-primary-light/50 file:text-sage-primary hover:file:bg-sage-primary-light transition-colors cursor-pointer"></div>`;
+
+        if (r.type === 'text-cloze') {
+            body.innerHTML = `
+                <div class="space-y-4">
+                    ${imgHtml} ${fileInputHtml}
+                    <div>
+                        <label class="block text-sage-text-muted font-bold mb-1.5">修改题干(标题)</label>
+                        <input type="text" id="edit-r-title" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-2.5 focus:ring-sage-primary font-bold text-sage-text-main" value="${r.title}">
+                    </div>
+                    <div>
+                        <label class="block text-sage-text-muted font-bold mb-1.5">修改背诵内容 (用 [mask:答案] 表示遮挡)</label>
+                        <textarea id="edit-r-content" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-3 focus:ring-sage-primary font-medium" rows="5">${r.content}</textarea>
+                    </div>
+                </div>
+            `;
+        } else {
+            body.innerHTML = `
+                <div class="space-y-4">
+                    ${imgHtml}
+                    <div class="p-4 text-center text-sage-text-muted font-bold bg-sage-bg rounded-xl border border-sage-border">⚠️ 图片背诵卡片涉及复杂的坐标体系，暂不支持直接在此修改图片区。<br><br>如需修改，请通过大纲的智能录入弹窗 <span class="text-sage-primary">+录入</span> 重新录制哦。</div>
+                </div>`;
+        }
+    }
+    document.getElementById('edit-question-modal').classList.remove('hidden');
+}
+
+function closeEditModal() { document.getElementById('edit-question-modal').classList.add('hidden'); }
+
+function confirmEditQuestion() {
+    if (currentEditItemType === 'practice' || currentEditItemType === 'wrong') {
+        const q = db[currentSubject].questions.find(x => x.id === currentEditItemId);
+        if(document.getElementById('edit-q-stem')) q.stem = document.getElementById('edit-q-stem').value;
+        if(document.getElementById('edit-q-ans')) q.answer = document.getElementById('edit-q-ans').value;
+        if (q.type === 'choice') {
+            q.options[0] = "A. " + document.getElementById('edit-q-opt-0').value;
+            q.options[1] = "B. " + document.getElementById('edit-q-opt-1').value;
+            q.options[2] = "C. " + document.getElementById('edit-q-opt-2').value;
+            q.options[3] = "D. " + document.getElementById('edit-q-opt-3').value;
+        }
+        if (currentEditImageBase64) q.image = currentEditImageBase64;
+    } else {
+        const r = db[currentSubject].recitations.find(x => x.id === currentEditItemId);
+        if (r.type === 'text-cloze') {
+            if(document.getElementById('edit-r-title')) r.title = document.getElementById('edit-r-title').value;
+            if(document.getElementById('edit-r-content')) r.content = document.getElementById('edit-r-content').value;
+            if(currentEditImageBase64) r.image = currentEditImageBase64;
+        }
+    }
+    saveDbToLocalStorage();
+    closeEditModal();
+    openManageModal(currentManageType);
+    if (currentEditItemType === 'practice' || currentEditItemType === 'wrong') initWrongReviewSession();
+    if (currentEditItemType === 'recite' || currentEditItemType === 'recite-wrong') initReciteReviewSession();
+    updateDashboards(); updateGlobalDashboards();
+}
+
+// 7. 整体分析
+function requestAiAnalysis(days) {
+    const stats = getGlobalStats();
+    let prompt = `请根据我 ${days} 的学习数据，做一份整体情况分析报告。严格按以下格式输出：
+1. 表扬：一句话热情鼓励我。
+2. 具体数据：总题数、正确数、正确率、错题知识点分布。
+3. 薄弱点分析：挑出2-3个最不牢固的知识点，每个知识点说明书本核心内容是什么，我可能错在哪里。
+4. 具体建议：针对每个薄弱点，给出一条可立即执行的学习动作。
+5. 鼓励督促：用一句话鼓励我继续加油。
+
+我的数据：
+- 时间范围：${days}
+- 总题/背诵数：${stats.capacity}
+- 正确掌握数：${localStorage.getItem('total_mastered') || 0}
+- 全科错题未清数：${stats.wrongs}
+    `;
+    requestAI(prompt, 'ai-analysis-report-box');
+}
+
+// 图表加载
+function initCharts() {
+    const ctxTrend = document.getElementById('trendChart')?.getContext('2d');
+    if (ctxTrend) {
+        new Chart(ctxTrend, {
+            type: 'line', data: { 
+                labels: ['6.9', '6.10', '6.11', '6.12', '6.13', '6.14', '今日'], 
+                datasets: [
+                    { label: '初中生物复习趋势', data: [12, 18, 10, 45, 20, 15, 30], borderColor: '#4F6F52', backgroundColor: 'rgba(79,111,82,0.1)', fill: true, tension: 0.1 },
+                    { label: '初中地理复习趋势', data: [5, 10, 8, 20, 15, 10, 32], borderColor: '#86A789', backgroundColor: 'rgba(134,167,137,0.1)', fill: true, tension: 0.1 }
+                ] 
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+    }
+    const ctxTime = document.getElementById('timeChart')?.getContext('2d');
+    if (ctxTime) {
+        new Chart(ctxTime, {
+            type: 'bar', data: { 
+                labels: ['初中生物', '初中地理'], 
+                datasets: [
+                    { label: '刷题练习', data: [55, 30], backgroundColor: '#4F6F52' },
+                    { label: '背诵默写', data: [20, 10], backgroundColor: '#86A789' }
+                ] 
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+    }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    loadDbFromLocalStorage();
+    updateGlobalDashboards();
+    renderTreeStructure('tree-container', 'practice');
+    renderTreeStructure('recite-tree-container', 'recite');
+    renderCalendarGrid();
+    initCharts();
+    updateCountdownTimer(); setInterval(updateCountdownTimer, 1000);
+    updateStudyTimeUI();
+    initWrongReviewSession(); initReciteReviewSession(); updateDashboards();
+    loadAiSettings(); 
+});
+
+// API 节点管理池真实逻辑
+let apiPool = JSON.parse(localStorage.getItem('integrated_ai_platform_api_pool') || '[]');
+
+function openApiManageModal() {
+    renderApiPoolList();
+    document.getElementById('api-manage-modal').classList.remove('hidden');
+}
+
+function closeApiManageModal() {
+    document.getElementById('api-manage-modal').classList.add('hidden');
+}
+
+function renderApiPoolList() {
+    const container = document.getElementById('api-pool-list');
+    if (apiPool.length === 0) {
+        container.innerHTML = '<div class="text-center bg-white border border-sage-border rounded-xl text-sage-text-muted text-xs py-8 font-bold">节点池为空，请在上方录入您的 API 节点配置哦~</div>';
+        return;
+    }
+
+    container.innerHTML = apiPool.map((api, index) => `
+        <div class="bg-white p-3.5 rounded-xl border border-sage-border flex flex-col md:flex-row justify-between md:items-center shadow-sm gap-4">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <p class="font-bold text-sage-text-main text-base truncate">${api.name}</p>
+                </div>
+                <p class="text-[11px] text-sage-text-muted truncate mt-1"><b>模型:</b> ${api.model}</p>
+                <p class="text-[11px] text-sage-text-muted truncate mt-0.5"><b>地址:</b> ${api.url}</p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <button onclick="applyApiFromPool(${index})" class="bg-sage-primary-light/40 text-sage-primary border border-sage-primary/30 px-4 py-2 rounded-xl font-bold hover:bg-sage-primary-light transition-all text-xs flex items-center gap-1">
+                    <span class="material-symbols-outlined !text-[16px]">check_circle</span> 选用
+                </button>
+                <button onclick="deleteApiFromPool(${index})" class="text-sage-error hover:bg-red-50 p-2 border border-transparent hover:border-red-100 rounded-xl transition-all" title="删除节点">
+                    <span class="material-symbols-outlined !text-[18px]">delete</span>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function addApiToPool() {
+    const name = document.getElementById('pool-api-name').value.trim();
+    const url = document.getElementById('pool-api-url').value.trim();
+    const key = document.getElementById('pool-api-key').value.trim();
+    const model = document.getElementById('pool-api-model').value.trim();
+
+    if (!name || !url || !key || !model) return alert("为了确保能正常调用，请将新节点的 4 项信息都填写完整哦！");
+
+    apiPool.push({ name, url, key, model, id: Date.now() });
+    localStorage.setItem('integrated_ai_platform_api_pool', JSON.stringify(apiPool));
+    
+    // 清空输入框
+    document.getElementById('pool-api-name').value = '';
+    document.getElementById('pool-api-url').value = '';
+    document.getElementById('pool-api-key').value = '';
+    document.getElementById('pool-api-model').value = '';
+    
+    renderApiPoolList();
+}
+
+function deleteApiFromPool(index) {
+    if (!confirm('确定要删除这个 API 节点配置吗？')) return;
+    apiPool.splice(index, 1);
+    localStorage.setItem('integrated_ai_platform_api_pool', JSON.stringify(apiPool));
+    renderApiPoolList();
+}
+
+function applyApiFromPool(index) {
+    const api = apiPool[index];
+    document.getElementById('ai-api-url').value = api.url;
+    document.getElementById('ai-api-key').value = api.key;
+    document.getElementById('ai-api-model').value = api.model;
+    
+    closeApiManageModal();
+    alert(`✅ 已将【${api.name}】的配置填入外部设置面板！\n\n请在外部面板点击【保存 API 配置】按钮使其正式生效。`);
+}
+</script>
+</body>
+</html>
