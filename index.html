@@ -682,6 +682,11 @@
                     <div id="smart-add-hint" class="bg-sage-primary-light/30 border border-sage-accent/30 rounded-xl p-3 mb-3 text-sage-text-main text-xs font-medium leading-relaxed">
                         </div>
                     <textarea id="smart-add-content" rows="6" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-3 focus:ring-sage-primary font-medium" placeholder="请在此处直接粘贴或输入题目完整内容..."></textarea>
+                    
+                    <div id="smart-add-analysis-section" class="mt-3">
+                        <label class="block text-sage-text-muted mb-1.5 font-bold">第四步：录入您的个人解析（可选）</label>
+                        <textarea id="smart-add-analysis" rows="3" class="w-full bg-sage-bg border-sage-border rounded-xl text-sm p-3 focus:ring-sage-primary font-medium" placeholder="如果您有自己对题目的理解或解析，请填在这里。复习时可以折叠查看。"></textarea>
+                    </div>
                 </div>
                 <div id="smart-add-image-section" class="hidden space-y-2">
                     <label class="block text-sage-text-muted mb-1.5 font-bold" id="img-sec-label">第三步：在图片上使用鼠标框选遮挡区域</label>
@@ -1238,8 +1243,8 @@ function renderTreeStructure(containerId, viewPrefix) {
             actionButtons += `<span onclick="editTreeNode('${node.id}', '${viewPrefix}')" class="text-sage-text-muted hover:text-sage-primary cursor-pointer text-xs ml-1 transition-colors" title="修改名称"><span class="material-symbols-outlined !text-[14px]">edit</span></span>`;
             actionButtons += `<span onclick="deleteTreeNode('${node.id}', '${viewPrefix}')" class="text-sage-text-muted hover:text-red-700 cursor-pointer text-xs ml-1 transition-colors" title="删除节点"><span class="material-symbols-outlined !text-[14px]">delete</span></span>`;
             
-            if (node.type === 'grade') actionButtons += `<span onclick="openAdminModal('chapter', '${node.id}')" class="text-sage-text-muted font-bold cursor-pointer hover:text-sage-primary text-xs ml-2">+大考点</span>`;
-            if (node.type === 'chapter') actionButtons += `<span onclick="openAdminModal('point', '${node.id}')" class="text-sage-text-muted font-bold cursor-pointer hover:text-sage-primary text-xs ml-2">+小点</span>`;
+            if (node.type === 'grade') actionButtons += `<span onclick="openAdminModal('chapter', '${node.id}', '${viewPrefix}')" class="text-sage-text-muted font-bold cursor-pointer hover:text-sage-primary text-xs ml-2">+大考点</span>`;
+            if (node.type === 'chapter') actionButtons += `<span onclick="openAdminModal('point', '${node.id}', '${viewPrefix}')" class="text-sage-text-muted font-bold cursor-pointer hover:text-sage-primary text-xs ml-2">+小点</span><span onclick="openSmartAddModal('${viewPrefix}', '${node.id}')" class="bg-sage-primary-light/40 border border-sage-border px-1.5 py-0.5 rounded text-xs text-sage-primary font-bold cursor-pointer hover:bg-sage-primary-light transition-colors ml-2">+录入</span>`;
             if (node.type === 'point') actionButtons += `<span onclick="openSmartAddModal('${viewPrefix}', '${node.id}')" class="bg-sage-primary-light/40 border border-sage-border px-1.5 py-0.5 rounded text-xs text-sage-primary font-bold cursor-pointer hover:bg-sage-primary-light transition-colors ml-2">+录入</span>`;
 
             let icon = 'folder';
@@ -1415,6 +1420,7 @@ function openSmartAddModal(context, parentId) {
     typeSelect.value = context === 'practice' ? 'choice' : 'recite_text';
     document.getElementById('smart-add-content').value = '';
     document.getElementById('smart-add-image').value = '';
+    if(document.getElementById('smart-add-analysis')) document.getElementById('smart-add-analysis').value = '';
     document.getElementById('draw-image').src = '';
     currentReciteMasks = []; renderDrawMasks();
     
@@ -1433,6 +1439,12 @@ function toggleSmartAddType() {
     const imgHint = document.getElementById('img-sec-hint');
     
     imgSec.classList.remove('hidden');
+
+    if (type === 'choice' || type === 'blank') {
+        document.getElementById('smart-add-analysis-section')?.classList.remove('hidden');
+    } else {
+        document.getElementById('smart-add-analysis-section')?.classList.add('hidden');
+    }
 
     if (type === 'choice') {
         txtSec.classList.remove('hidden'); 
