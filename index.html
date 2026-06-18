@@ -1178,17 +1178,18 @@ async function requestAI(prompt, targetElementId) {
 }
 
 function getPracticeAiPrompt(q) {
-    return `请你扮演一位非常耐心的老师。我的基础差，理解能力弱。请仔细阅读下面的题目，并严格按照以下步骤为我解析：
+    return `请你扮演一位非常耐心的老师。我的基础差，理解能力弱。请仔细阅读下面的题目以及我自己写的解析，并严格按照以下步骤为我进行更加通俗易懂的补充解析：
         
 1. 【知识点溯源】：请独立判断这道题考察的知识体系，并直接输出所属的：一级大板块 ➔ 二级小章节 ➔ 三级具体考点。
 2. 【核心复习】：写出书本中该知识点的核心原理（用最简单通俗的话解释，可举生活中的例子）。
-3. 【思路拆解】：一步一步教我如何正确解题：第一步看哪里，第二步算什么，第三步得出什么。
+3. 【通俗大白话拆解】：我自己写的解析如果我还看不懂，请你用比我写的解析更加大白话、更简单的逻辑一步一步教我如何正确解题：第一步看哪里，第二步算什么，第三步得出什么。
 4. 【选项剖析】：根据题型给出解析。如果是选择题，请务必逐一解释每一个选项为什么对或错。
 5. 【最终结论】：给出完整标准答案。
 
 题目：${q.stem}
 选项：${q.options && q.options.length ? q.options.join(' | ') : '无'}
 标准答案：${q.answer}
+我自己的解析：${q.analysis || "暂无"}
     `;
 }
 
@@ -1208,10 +1209,14 @@ function getReciteAiPrompt(r) {
 // ==========================================
 function countItems(node, type) {
     let count = 0;
-    if (node.type === 'point') {
-        if (type === 'practice') count = db[currentSubject].questions.filter(q => q.pointId === node.id).length;
-        else count = db[currentSubject].recitations.filter(r => r.pointId === node.id).length;
-    } else if (node.children) {
+    // 1. 不管是什么层级（学年/大考点/小考点），先把直接挂载在它身上的题目算进去
+    if (type === 'practice') {
+        count += db[currentSubject].questions.filter(q => q.pointId === node.id).length;
+    } else {
+        count += db[currentSubject].recitations.filter(r => r.pointId === node.id).length;
+    }
+    // 2. 如果有子节点，再向下递归累加
+    if (node.children) {
         node.children.forEach(c => count += countItems(c, type));
     }
     return count;
@@ -1243,7 +1248,7 @@ function renderTreeStructure(containerId, viewPrefix) {
             actionButtons += `<span onclick="editTreeNode('${node.id}', '${viewPrefix}')" class="text-sage-text-muted hover:text-sage-primary cursor-pointer text-xs ml-1 transition-colors" title="修改名称"><span class="material-symbols-outlined !text-[14px]">edit</span></span>`;
             actionButtons += `<span onclick="deleteTreeNode('${node.id}', '${viewPrefix}')" class="text-sage-text-muted hover:text-red-700 cursor-pointer text-xs ml-1 transition-colors" title="删除节点"><span class="material-symbols-outlined !text-[14px]">delete</span></span>`;
             
-            if (node.type === 'grade') actionButtons += `<span onclick="openAdminModal('chapter', '${node.id}', '${viewPrefix}')" class="text-sage-text-muted font-bold cursor-pointer hover:text-sage-primary text-xs ml-2">+大考点</span>`;
+            if (node.type === 'grade') actionButtons += `<span onclick="openAdminModal('chapter', '${node.id}', '${viewPrefix}')" class="text-sage-text-muted font-bold cursor-pointer hover:text-sage-primary text-xs ml-2">+大考点</span><span onclick="openSmartAddModal('${viewPrefix}', '${node.id}')" class="bg-sage-primary-light/40 border border-sage-border px-1.5 py-0.5 rounded text-xs text-sage-primary font-bold cursor-pointer hover:bg-sage-primary-light transition-colors ml-2">+录入</span>`;
             if (node.type === 'chapter') actionButtons += `<span onclick="openAdminModal('point', '${node.id}', '${viewPrefix}')" class="text-sage-text-muted font-bold cursor-pointer hover:text-sage-primary text-xs ml-2">+小点</span><span onclick="openSmartAddModal('${viewPrefix}', '${node.id}')" class="bg-sage-primary-light/40 border border-sage-border px-1.5 py-0.5 rounded text-xs text-sage-primary font-bold cursor-pointer hover:bg-sage-primary-light transition-colors ml-2">+录入</span>`;
             if (node.type === 'point') actionButtons += `<span onclick="openSmartAddModal('${viewPrefix}', '${node.id}')" class="bg-sage-primary-light/40 border border-sage-border px-1.5 py-0.5 rounded text-xs text-sage-primary font-bold cursor-pointer hover:bg-sage-primary-light transition-colors ml-2">+录入</span>`;
 
@@ -1756,13 +1761,14 @@ function getSelectedPointIds(viewPrefix) {
             return null;
         }
         let node = findNode(targetTree);
-        if(node) {
-            function getLeaves(n) {
-                if(n.type === 'point') points.add(n.id);
-                if(n.children) n.children.forEach(getLeaves);
-            }
-            getLeaves(node);
-        }
+                if(node) {
+                    function getLeaves(n) {
+                        // 取消只有 point 才能被抽取的限制，将所有层级的ID都加入抽取池
+                        points.add(n.id); 
+                        if(n.children) n.children.forEach(getLeaves);
+                    }
+                    getLeaves(node);
+                }
     });
     return points;
 }
@@ -1856,15 +1862,27 @@ function renderPracticeQuestionItem(q) {
     html += `</div>`;
     
     if (isFastMode) {
+        if (isFastMode) {
         html += `<div class="p-4 rounded-xl border text-sm bg-sage-primary-light/30 border-sage-primary/30 text-sage-text-main mt-3 shadow-sm"><p class="font-black text-sage-primary">【标准答案】${q.answer}</p></div>`;
     } else {
         html += `<div id="practice-feedback-box" class="hidden p-4 rounded-xl border leading-relaxed shadow-sm"></div>`;
     }
     
     html += `
-            <div id="${aiBoxId}" class="mt-3"></div>
-            <div class="flex justify-between items-center pt-4 border-t border-sage-border text-sm">
-                <button onclick="requestAI(\`${getPracticeAiPrompt(q)}\`, '${aiBoxId}')" class="border border-sage-accent text-sage-primary px-4 py-1.5 rounded-xl font-bold flex items-center gap-1 hover:bg-sage-bg transition-colors"><span class="material-symbols-outlined !text-[18px]">smart_toy</span> 深入解析</button>
+            <div class="mt-4 border border-sage-border rounded-xl overflow-hidden shadow-sm">
+                <button onclick="document.getElementById('analysis-panel-${q.id}-content').classList.toggle('hidden'); document.getElementById('analysis-panel-${q.id}-icon').innerText = document.getElementById('analysis-panel-${q.id}-content').classList.contains('hidden') ? 'expand_more' : 'expand_less';" class="w-full bg-sage-bg text-sage-text-main px-4 py-3 font-bold text-sm flex justify-between items-center hover:bg-sage-border/50 transition-colors">
+                    <span class="flex items-center gap-1.5"><span class="material-symbols-outlined !text-[18px]">lightbulb</span> 点击展开我的文字解析</span>
+                    <span class="material-symbols-outlined !text-[20px]" id="analysis-panel-${q.id}-icon">expand_more</span>
+                </button>
+                <div id="analysis-panel-${q.id}-content" class="hidden p-4 bg-white text-sage-text-main text-sm leading-relaxed border-t border-sage-border">
+                    <p class="whitespace-pre-wrap">${q.analysis || "暂无自定义解析"}</p>
+                    <div id="${aiBoxId}" class="mt-4"></div>
+                    <button onclick="requestAI(\`${getPracticeAiPrompt(q)}\`, '${aiBoxId}')" class="mt-4 bg-sage-primary-light/40 border border-sage-primary/30 text-sage-primary px-4 py-2 rounded-lg font-bold flex items-center gap-1.5 hover:bg-sage-primary-light transition-colors w-full justify-center shadow-sm">
+                        <span class="material-symbols-outlined !text-[18px]">smart_toy</span> 还不懂？点击生成更通俗易懂的 AI 解析
+                    </button>
+                </div>
+            </div>
+            <div class="flex justify-end items-center pt-4 mt-4 border-t border-sage-border text-sm">
                 <div class="flex items-center gap-3">
                     <span class="text-sage-text-muted font-bold text-xs">进度: ${currentPracticeIndex + 1} / ${activePracticeQueue.length}</span>
                     <button onclick="advancePracticeQuestion()" class="bg-sage-accent text-white px-4 py-2 rounded-xl font-bold hover:opacity-90 flex items-center gap-1 shadow-sm transition-opacity">下一题 <span class="material-symbols-outlined !text-[18px]">arrow_forward</span></button>
@@ -2016,9 +2034,20 @@ function renderWrongReviewQuestionItem() {
 
     html += `
             </div>
-            <div id="${aiBoxId}" class="mt-3"></div>
-            <div class="pt-4 border-t border-sage-border flex justify-between items-center mt-5">
-                <button onclick="requestAI(\`${getPracticeAiPrompt(q)}\`, '${aiBoxId}')" class="border border-sage-accent text-sage-primary px-4 py-1.5 rounded-xl font-bold flex items-center gap-1 hover:bg-sage-bg transition-colors"><span class="material-symbols-outlined !text-[18px]">smart_toy</span> 深入解析</button>
+            <div class="mt-4 border border-sage-border rounded-xl overflow-hidden shadow-sm">
+                <button onclick="document.getElementById('analysis-panel-${q.id}-content').classList.toggle('hidden'); document.getElementById('analysis-panel-${q.id}-icon').innerText = document.getElementById('analysis-panel-${q.id}-content').classList.contains('hidden') ? 'expand_more' : 'expand_less';" class="w-full bg-sage-bg text-sage-text-main px-4 py-3 font-bold text-sm flex justify-between items-center hover:bg-sage-border/50 transition-colors">
+                    <span class="flex items-center gap-1.5"><span class="material-symbols-outlined !text-[18px]">lightbulb</span> 点击展开我的文字解析</span>
+                    <span class="material-symbols-outlined !text-[20px]" id="analysis-panel-${q.id}-icon">expand_more</span>
+                </button>
+                <div id="analysis-panel-${q.id}-content" class="hidden p-4 bg-white text-sage-text-main text-sm leading-relaxed border-t border-sage-border">
+                    <p class="whitespace-pre-wrap">${q.analysis || "暂无自定义解析"}</p>
+                    <div id="${aiBoxId}" class="mt-4"></div>
+                    <button onclick="requestAI(\`${getPracticeAiPrompt(q)}\`, '${aiBoxId}')" class="mt-4 bg-sage-primary-light/40 border border-sage-primary/30 text-sage-primary px-4 py-2 rounded-lg font-bold flex items-center gap-1.5 hover:bg-sage-primary-light transition-colors w-full justify-center shadow-sm">
+                        <span class="material-symbols-outlined !text-[18px]">smart_toy</span> 还不懂？点击生成更通俗易懂的 AI 解析
+                    </button>
+                </div>
+            </div>
+            <div class="pt-4 mt-4 border-t border-sage-border flex justify-end items-center">
                 ${isFast ? `<button onclick="advanceWrongReviewFastMode()" class="bg-sage-primary text-white px-5 py-2 rounded-xl font-bold shadow-sm hover:opacity-90 transition-opacity flex items-center gap-1">下一题 <span class="material-symbols-outlined !text-[18px]">arrow_forward</span></button>` : ''}
             </div>
         </div>
